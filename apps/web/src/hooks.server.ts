@@ -12,5 +12,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 		event.locals.session = null;
 	}
 
-	return resolve(event);
+	return resolve(event, {
+		preload: ({ type }) => type === "font" || type === "js" || type === "css",
+	});
 };

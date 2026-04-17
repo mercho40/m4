@@ -51,9 +51,9 @@
 				<Field>
 					<div class="flex items-center">
 						<FieldLabel for="password-{id}">Password</FieldLabel>
-						<a href="/forgot-password" class="ms-auto inline-block text-sm underline">
-							Forgot your password?
-						</a>
+						<!-- <a href="/forgot-password" class="ms-auto inline-block text-sm underline"> -->
+						<!-- 	Forgot your password? -->
+						<!-- </a> -->
 					</div>
 					<Input id="password-{id}" type="password" required bind:value={password} />
 				</Field>
