@@ -1,38 +1,48 @@
 <script lang="ts">
 	import { authClient } from "$lib/auth-client";
-	import SunIcon from "@lucide/svelte/icons/sun";
-	import MoonIcon from "@lucide/svelte/icons/moon";
-	import { toggleMode } from "mode-watcher";
 	import { Button } from "$lib/components/ui/button/index.js";
+	import * as Card from "$lib/components/ui/card/index.js";
+	import ThemeToggle from "$lib/components/theme-toggle.svelte";
 
 	let { data } = $props();
 </script>
 
-<h1>Welcome to Fleni</h1>
-<div>
-	{#if data.user}
-		<div>
-			<p>{data.user.name}</p>
-			<a href="/dashboard">Dashboard</a>
-			<button
-				onclick={async () => {
-					await authClient.signOut();
-					window.location.href = "/";
-				}}
-			>
-				Sign Out
-			</button>
-		</div>
-	{:else}
-		<a href="/login">Login</a>
-	{/if}
+<div class="flex min-h-svh items-center justify-center p-6 md:p-10">
+	<Card.Root class="mx-auto w-full max-w-sm">
+		{#if data.user}
+			<Card.Header>
+				<Card.Title class="text-2xl">Welcome back</Card.Title>
+				<Card.Description>{data.user.name}</Card.Description>
+			</Card.Header>
+			<Card.Content class="space-y-4">
+				<div class="space-y-1">
+					<p class="text-muted-foreground text-sm">Email</p>
+					<p class="text-sm font-medium">{data.user.email}</p>
+				</div>
+				<Button href="/dashboard" class="w-full">Dashboard</Button>
+				<Button
+					variant="outline"
+					class="w-full"
+					onclick={async () => {
+						await authClient.signOut();
+						window.location.href = "/";
+					}}
+				>
+					Sign Out
+				</Button>
+			</Card.Content>
+		{:else}
+			<Card.Header>
+				<Card.Title class="text-2xl">Welcome</Card.Title>
+				<Card.Description>Get started by logging in</Card.Description>
+			</Card.Header>
+			<Card.Content class="space-y-4">
+				<Button href="/login" class="w-full">Login</Button>
+				<Button href="/signup" variant="outline" class="w-full">Sign Up</Button>
+			</Card.Content>
+		{/if}
+		<Card.Footer class="justify-center">
+			<ThemeToggle />
+		</Card.Footer>
+	</Card.Root>
 </div>
-<Button onclick={toggleMode} variant="outline" size="icon">
-	<SunIcon
-		class="h-[1.2rem] w-[1.2rem] scale-100 rotate-0 !transition-all dark:scale-0 dark:-rotate-90"
-	/>
-	<MoonIcon
-		class="absolute h-[1.2rem] w-[1.2rem] scale-0 rotate-90 !transition-all dark:scale-100 dark:rotate-0"
-	/>
-	<span class="sr-only">Toggle theme</span>
-</Button>
