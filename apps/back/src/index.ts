@@ -35,9 +35,24 @@ const app = new Elysia()
     }),
   )
   .get("/health", () => ({ status: "ok", timestamp: Date.now() }))
-  .get("/user", ({ user }) => user, {
-    auth: true,
-  })
+  .get(
+    "/dashboard",
+    ({ user, session }) => ({
+      user: {
+        name: user.name,
+        email: user.email,
+        image: user.image,
+      },
+      account: {
+        createdAt: user.createdAt,
+      },
+      session: {
+        id: session.id,
+        expiresAt: session.expiresAt,
+      },
+    }),
+    { auth: true },
+  )
   .listen(3000);
 
 console.log(
