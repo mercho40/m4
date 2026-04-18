@@ -41,8 +41,13 @@
 				<Button href="/signup" variant="outline" class="w-full">Sign Up</Button>
 			</Card.Content>
 		{/if}
-		<Card.Footer class="justify-center">
+		<Card.Footer class="flex-col items-center gap-2">
 			<ThemeToggle />
+			{#if data.health}
+				<p class="text-muted-foreground text-xs">
+					API: {data.health.status}
+				</p>
+			{/if}
 		</Card.Footer>
 	</Card.Root>
 </div>
