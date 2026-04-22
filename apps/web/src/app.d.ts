@@ -1,21 +1,11 @@
+import type { getCookieCache } from "better-auth/cookies";
+
+type CookieSession = NonNullable<Awaited<ReturnType<typeof getCookieCache>>>;
+
 declare global {
 	namespace App {
 		interface Locals {
-			user: {
-				id: string;
-				name: string;
-				email: string;
-				emailVerified: boolean;
-				image?: string | null;
-				createdAt: Date;
-				updatedAt: Date;
-			} | null;
-			session: {
-				id: string;
-				expiresAt: Date;
-				token: string;
-				userId: string;
-			} | null;
+			user: CookieSession["user"] | null;
 		}
 	}
 }

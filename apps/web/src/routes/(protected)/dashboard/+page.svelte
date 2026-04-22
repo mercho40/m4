@@ -4,7 +4,6 @@
 	import * as Card from "$lib/components/ui/card/index.js";
 
 	let { data } = $props();
-	const dashboard = data.dashboard;
 </script>
 
 <div class="flex min-h-svh items-center justify-center p-6 md:p-10">
@@ -21,8 +20,8 @@
 			<div class="space-y-1">
 				<p class="text-muted-foreground text-sm">Member since</p>
 				<p class="text-sm font-medium">
-					{dashboard?.account.createdAt
-						? new Date(dashboard.account.createdAt).toLocaleDateString()
+					{data.user?.createdAt
+						? new Date(data.user.createdAt).toLocaleDateString()
 						: ""}
 				</p>
 			</div>

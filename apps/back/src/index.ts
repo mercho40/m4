@@ -1,7 +1,6 @@
 import { Elysia } from "elysia";
 import { auth } from "@back/lib/auth";
 import { cors } from "@elysiajs/cors";
-import { openapi } from '@elysiajs/openapi'
 
 // user middleware (compute user and session and pass to routes)
 const betterAuth = new Elysia({ name: "better-auth" })
@@ -25,7 +24,6 @@ const betterAuth = new Elysia({ name: "better-auth" })
 
 const app = new Elysia()
   .use(betterAuth)
-  .use(openapi())
   .use(
     cors({
       origin: process.env.WEB_URL!,
@@ -35,24 +33,6 @@ const app = new Elysia()
     }),
   )
   .get("/health", () => ({ status: "ok", timestamp: Date.now() }))
-  .get(
-    "/dashboard",
-    ({ user, session }) => ({
-      user: {
-        name: user.name,
-        email: user.email,
-        image: user.image,
-      },
-      account: {
-        createdAt: user.createdAt,
-      },
-      session: {
-        id: session.id,
-        expiresAt: session.expiresAt,
-      },
-    }),
-    { auth: true },
-  )
   .listen(3000);
 
 console.log(

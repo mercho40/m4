@@ -3,14 +3,7 @@ import type { Handle } from "@sveltejs/kit";
 
 export const handle: Handle = async ({ event, resolve }) => {
 	const session = await getCookieCache(event.request);
-
-	if (session) {
-		event.locals.user = session.user;
-		event.locals.session = session.session;
-	} else {
-		event.locals.user = null;
-		event.locals.session = null;
-	}
+	event.locals.user = session?.user ?? null;
 
 	return resolve(event, {
 		preload: ({ type }) => type === "font" || type === "js" || type === "css",

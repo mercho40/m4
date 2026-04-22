@@ -4,14 +4,6 @@
 	import * as Field from "$lib/components/ui/field/index.js";
 	import { Input } from "$lib/components/ui/input/index.js";
 	import { authClient } from "$lib/auth-client";
-	import { goto } from "$app/navigation";
-	import type { ComponentProps } from "svelte";
-
-	let { ...restProps }: ComponentProps<typeof Card.Root> = $props();
-	const session = authClient.useSession();
-	$effect(() => {
-		if ($session.data) goto("/", { invalidateAll: true });
-	});
 
 	let name = $state("");
 	let email = $state("");
@@ -43,7 +35,7 @@
 	}
 </script>
 
-<Card.Root {...restProps} class="mx-auto w-full max-w-sm">
+<Card.Root class="mx-auto w-full max-w-sm">
 	<Card.Header>
 		<Card.Title>Create an account</Card.Title>
 		<Card.Description>Enter your information below to create your account</Card.Description>

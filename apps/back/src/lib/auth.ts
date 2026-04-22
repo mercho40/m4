@@ -26,6 +26,7 @@ export const auth = betterAuth({
     },
   },
   trustedOrigins: [process.env.WEB_URL!],
+  // Joined session reads — one query instead of N on getSession.
   experimental: { joins: true },
   session: {
     cookieCache: {

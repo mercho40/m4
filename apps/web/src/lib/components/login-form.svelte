@@ -9,13 +9,8 @@
 		FieldDescription,
 	} from "$lib/components/ui/field/index.js";
 	import { authClient } from "$lib/auth-client";
-	import { goto } from "$app/navigation";
 
 	const id = $props.id();
-	const session = authClient.useSession();
-	$effect(() => {
-		if ($session.data) goto("/", { invalidateAll: true });
-	});
 
 	let email = $state("");
 	let password = $state("");
