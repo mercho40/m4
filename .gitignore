@@ -44,3 +44,9 @@ CLAUDE.md
 .claude
 .mcp.json
 skills-lock.json
+
+# Internal docs / specs (no commitear)
+docs/
+
+# Consigna del TP
+*.pdf
