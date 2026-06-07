@@ -1,16 +1,13 @@
 import { betterAuth } from "better-auth/minimal";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { db } from "@back/db/drizzle";
-import { admin, organization } from "better-auth/plugins"
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
     provider: "pg",
   }),
-  plugins: [
-    admin(),
-    organization()
-  ],
+  // Anonymous usage telemetry is on by default in Better Auth; opt out.
+  telemetry: { enabled: false },
   emailAndPassword: {
     enabled: true,
   },
