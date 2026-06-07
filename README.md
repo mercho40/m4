@@ -54,7 +54,6 @@ This starts both apps:
 | `bun run dev` | Start all apps in development |
 | `bun run build` | Build all apps |
 | `bun run check-types` | Type check across monorepo |
-| `bun run format` | Format with Prettier |
 | `bun run start` | Start production (requires build) |
 
 ### Backend (apps/back)
