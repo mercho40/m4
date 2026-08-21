@@ -3,6 +3,10 @@
     "better-auth": {
       "type": "http",
       "url": "https://mcp.better-auth.com/mcp"
+    },
+    "svelte": {
+      "type": "http",
+      "url": "https://mcp.svelte.dev/mcp"
     }
   }
 }

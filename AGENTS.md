@@ -89,14 +89,15 @@ Generates a Svelte Playground link with the provided code. After completing the 
 
 ## Agent Tooling
 
-Vendored skills live in `.agents/skills/` (`elysiajs`, `shadcn-svelte`), with
-`.claude/skills` symlinked to that directory so Claude Code picks them up. See
-`.agents/skills/README.md` for provenance and for what was deliberately left
-out. `.mcp.json` registers the Better Auth docs MCP server.
+Vendored skills live in `.agents/skills/` — `elysiajs`, `shadcn-svelte`,
+`svelte-code-writer`, `svelte-core-bestpractices` — with `.claude/skills`
+symlinked to that directory so Claude Code picks them up. `.claude/agents/`
+holds the Svelte file-editor subagent. See `.agents/skills/README.md` for
+provenance, pinned commits, and what was deliberately left out.
 
-The Svelte MCP server below is delivered by the `svelte@svelte` plugin enabled in
-`.claude/settings.json`; harnesses other than Claude Code will need their own
-equivalent, or can fall back to the documentation URLs in the next section.
+`.mcp.json` registers two remote HTTP documentation servers, `better-auth` and
+`svelte`. Both are read-only and need no credentials, so any harness that reads
+`.mcp.json` gets them. Nothing here depends on a Claude Code plugin.
 
 ## Documentation Lookup
 

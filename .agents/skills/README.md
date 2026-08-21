@@ -11,6 +11,19 @@ Both are tracked, so a fresh clone gets the skills and the symlink together.
 |---|---|---|---|
 | `elysiajs` | https://github.com/elysiajs/skills | `8fd8031` | `elysia/` |
 | `shadcn-svelte` | https://github.com/huntabyte/shadcn-svelte | `dabbd4c` | `skills/shadcn-svelte/` |
+| `svelte-code-writer` | https://github.com/sveltejs/ai-tools | `7e98403` | `tools/skills/svelte-code-writer/` |
+| `svelte-core-bestpractices` | https://github.com/sveltejs/ai-tools | `7e98403` | `tools/skills/svelte-core-bestpractices/` |
+
+`.claude/agents/svelte-file-editor.md` comes from the same repo and commit
+(`tools/agents/svelte-file-editor.md`). It is Claude-specific, so it lives under
+`.claude/` rather than `.agents/`.
+
+The Svelte tooling was previously delivered by the `svelte@svelte` Claude Code
+plugin. That plugin is now disabled: it installs outside the repo, so teammates
+and non-Claude harnesses got none of it, and leaving it enabled alongside these
+copies would give Claude Code two skills of each name and two MCP servers both
+called `svelte`. The trade is that updates are manual now — re-vendor at a newer
+commit, same as the other skills.
 
 To update, re-clone at a newer commit and copy the same directories:
 
