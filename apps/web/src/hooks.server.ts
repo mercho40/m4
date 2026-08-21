@@ -1,10 +1,15 @@
 import { getCookieCache } from "better-auth/cookies";
 import { authClient } from "$lib/auth-client";
+import { PUBLIC_API_URL } from "$env/static/public";
 import type { Handle } from "@sveltejs/kit";
 
 export const handle: Handle = async ({ event, resolve }) => {
 	// Fast path: Better Auth's signed cookie cache (5-min TTL) — no backend call.
-	let session = await getCookieCache(event.request);
+	// The cache cookie's `__Secure-` prefix is decided by the WRITER (the API),
+	// so derive it from the API URL rather than this process's own NODE_ENV.
+	let session = await getCookieCache(event.request, {
+		isSecure: PUBLIC_API_URL.startsWith("https://"),
+	});
 	let refreshedCookies: string[] = [];
 
 	const cookieHeader = event.request.headers.get("cookie") ?? "";
@@ -28,9 +33,9 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 	event.locals.user = session?.user ?? null;
 
-	const response = await resolve(event, {
-		preload: ({ type }) => type === "font" || type === "js" || type === "css",
-	});
+	// SvelteKit's default filter already preloads js and css. Adding "font" opted
+	// in every Geist unicode-range subset, most of which the page never renders.
+	const response = await resolve(event);
 
 	// Relay the refreshed cache cookie (dev/localhost: same host, so it applies;
 	// for cross-subdomain prod, enable advanced.crossSubDomainCookies on the backend).

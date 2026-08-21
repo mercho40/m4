@@ -4,6 +4,11 @@
 	import * as Field from "$lib/components/ui/field/index.js";
 	import { Input } from "$lib/components/ui/input/index.js";
 	import { authClient } from "$lib/auth-client";
+	import { goto } from "$app/navigation";
+
+	// Per-instance ids: hardcoded ones collide with any other form on the page
+	// (login-form renders its own email/password fields) and mis-target labels.
+	const id = $props.id();
 
 	let name = $state("");
 	let email = $state("");
@@ -20,18 +25,40 @@
 		}
 		loading = true;
 		error = "";
-		await authClient.signUp.email(
-			{ email, password, name },
-			{
-				onSuccess: () => {
-					window.location.href = "/";
+		try {
+			await authClient.signUp.email(
+				{ email, password, name },
+				{
+					onSuccess: () => goto("/", { invalidateAll: true }),
+					onError: (ctx) => {
+						error = ctx.error.message;
+					},
 				},
-				onError: (ctx) => {
-					error = ctx.error.message;
+			);
+		} catch {
+			error = "Could not reach the server. Check your connection and try again.";
+		} finally {
+			loading = false;
+		}
+	}
+
+	async function social(provider: "google" | "github") {
+		loading = true;
+		error = "";
+		try {
+			await authClient.signIn.social(
+				{ provider },
+				{
+					onError: (ctx) => {
+						error = ctx.error.message;
+					},
 				},
-			},
-		);
-		loading = false;
+			);
+		} catch {
+			error = "Could not reach the server. Check your connection and try again.";
+		} finally {
+			loading = false;
+		}
 	}
 </script>
 
@@ -44,24 +71,50 @@
 		<form onsubmit={handleSubmit}>
 			<Field.Group>
 				<Field.Field>
-					<Field.Label for="name">Full Name</Field.Label>
-					<Input id="name" type="text" placeholder="John Doe" required bind:value={name} />
+					<Field.Label for="name-{id}">Full Name</Field.Label>
+					<Input
+						id="name-{id}"
+						type="text"
+						autocomplete="name"
+						placeholder="John Doe"
+						required
+						bind:value={name}
+					/>
 				</Field.Field>
 				<Field.Field>
-					<Field.Label for="email">Email</Field.Label>
-					<Input id="email" type="email" placeholder="m@example.com" required bind:value={email} />
+					<Field.Label for="email-{id}">Email</Field.Label>
+					<Input
+						id="email-{id}"
+						type="email"
+						autocomplete="username"
+						placeholder="m@example.com"
+						required
+						bind:value={email}
+					/>
 				</Field.Field>
 				<Field.Field>
-					<Field.Label for="password">Password</Field.Label>
-					<Input id="password" type="password" required bind:value={password} />
+					<Field.Label for="password-{id}">Password</Field.Label>
+					<Input
+						id="password-{id}"
+						type="password"
+						autocomplete="new-password"
+						required
+						bind:value={password}
+					/>
 					<Field.Description>Must be at least 8 characters long.</Field.Description>
 				</Field.Field>
 				<Field.Field>
-					<Field.Label for="confirm-password">Confirm Password</Field.Label>
-					<Input id="confirm-password" type="password" required bind:value={confirmPassword} />
+					<Field.Label for="confirm-password-{id}">Confirm Password</Field.Label>
+					<Input
+						id="confirm-password-{id}"
+						type="password"
+						autocomplete="new-password"
+						required
+						bind:value={confirmPassword}
+					/>
 				</Field.Field>
 				{#if error}
-					<p class="text-sm text-red-500">{error}</p>
+					<Field.Error>{error}</Field.Error>
 				{/if}
 				<Field.Group>
 					<Field.Field>
@@ -72,7 +125,8 @@
 							variant="outline"
 							class="w-full"
 							type="button"
-							onclick={() => authClient.signIn.social({ provider: "google" })}
+							disabled={loading}
+							onclick={() => social("google")}
 						>
 							<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
 								<path
@@ -86,7 +140,8 @@
 							variant="outline"
 							class="w-full"
 							type="button"
-							onclick={() => authClient.signIn.social({ provider: "github" })}
+							disabled={loading}
+							onclick={() => social("github")}
 						>
 							<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
 								<path
