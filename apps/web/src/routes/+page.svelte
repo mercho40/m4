@@ -19,7 +19,6 @@
 					<p class="text-muted-foreground text-sm">Email</p>
 					<p class="text-sm font-medium">{data.user.email}</p>
 				</div>
-				<Button href="/dashboard" class="w-full">Dashboard</Button>
 				<Button
 					variant="outline"
 					class="w-full"
