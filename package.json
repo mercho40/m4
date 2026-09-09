@@ -8,12 +8,12 @@
     "start": "turbo run start"
   },
   "devDependencies": {
-    "turbo": "^2.10.11"
+    "turbo": "^2.10.12"
   },
   "engines": {
     "node": ">=18"
   },
-  "packageManager": "bun@1.4.0",
+  "packageManager": "bun@1.4.2",
   "workspaces": [
     "apps/*",
     "packages/*"

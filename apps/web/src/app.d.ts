@@ -7,6 +7,14 @@ declare global {
 		interface Locals {
 			user: CookieSession["user"] | null;
 		}
+
+		// Shape of `page.error`. `message` is always present; `errorId` is
+		// generated in handleError so a user can quote it and it can be matched
+		// against the server logs without exposing the underlying error.
+		interface Error {
+			message: string;
+			errorId?: string;
+		}
 	}
 }
 

@@ -1,8 +1,59 @@
-import { redirect } from "@sveltejs/kit";
-import type { PageServerLoad } from "./$types";
+import { fail, redirect } from "@sveltejs/kit";
+import { callAuth } from "$lib/server/auth-api";
+import { getSiteOrigin } from "$lib/server/site-url";
+import type { Actions, PageServerLoad } from "./$types";
 
 // Mirror image of the (protected) guard: the server already knows who this is,
 // so decide here instead of rendering the form and undoing it after hydration.
 export const load: PageServerLoad = ({ locals }) => {
 	if (locals.user) redirect(303, "/");
+};
+
+export const actions: Actions = {
+	// Named rather than default so the social action can live alongside it.
+	login: async ({ request, fetch, cookies, url }) => {
+		const data = await request.formData();
+		const email = String(data.get("email") ?? "").trim();
+		const password = String(data.get("password") ?? "");
+
+		if (!email || !password) {
+			return fail(400, { email, message: "Enter your email and password." });
+		}
+
+		const result = await callAuth("sign-in/email", { email, password }, { fetch, cookies, origin: getSiteOrigin(url) });
+
+		if (!result.ok) {
+			// Never echo the password back — only the email, so the field can be refilled.
+			return fail(result.status === 401 ? 400 : result.status, {
+				email,
+				message: result.message || "That email and password combination is not correct.",
+			});
+		}
+
+		redirect(303, "/");
+	},
+
+	social: async ({ request, fetch, cookies, url }) => {
+		const provider = String((await request.formData()).get("provider") ?? "");
+
+		if (provider !== "google" && provider !== "github") {
+			return fail(400, { message: "Unknown sign-in provider." });
+		}
+
+		const result = await callAuth(
+			"sign-in/social",
+			{ provider, callbackURL: new URL("/", url).href },
+			{ fetch, cookies, origin: getSiteOrigin(url) },
+		);
+
+		const target = typeof result.data?.url === "string" ? result.data.url : null;
+
+		if (!result.ok || !target) {
+			// Providers are registered on the backend only when configured, so an
+			// unconfigured one lands here instead of redirecting to a broken page.
+			return fail(400, { message: result.message || "That sign-in provider is unavailable." });
+		}
+
+		redirect(303, target);
+	},
 };

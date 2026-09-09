@@ -71,6 +71,44 @@ Better Auth >= 1.7 scopes account identity by `issuer` rather than `provider_id`
 
 **`apps/web/.env`:** `PUBLIC_API_URL`, `BETTER_AUTH_SECRET` (must match backend)
 
+## Deployment
+
+**`apps/web` → Vercel.** Uses `@sveltejs/adapter-vercel`. Set the Vercel project's
+Node version to **24**: the adapter only accepts 20, 22 or 24, and
+`svelte.config.js` pins `runtime: "nodejs24.x"` because this machine's Node (26)
+is outside the set the adapter can infer from. Environment: `PUBLIC_API_URL`
+(the API origin) and `BETTER_AUTH_SECRET` (must match the backend's).
+
+**`apps/back` → Docker, deployed with Haloy.** Build context is the repo root,
+not `apps/back`, because the Bun workspace install needs the root lockfile:
+
+```bash
+docker build -f apps/back/Dockerfile -t m4-back .
+```
+
+Multi-stage: `oven/bun` compiles a self-contained binary, which is copied into
+`gcr.io/distroless/base-debian12`. The runtime image has no Bun and no
+`node_modules`. It listens on `PORT` (8080 in the image) and serves `/health`.
+
+**Both apps must sit on subdomains of one parent domain** — e.g.
+`app.example.com` and `api.example.com`. Set `COOKIE_DOMAIN=example.com` on the
+backend, which turns on `advanced.crossSubDomainCookies`. This is not optional
+polish: `hooks.server.ts` reads the session cookie from requests to the *web*
+origin, but the cookie is set by the *API* origin. On unrelated domains the
+browser never sends it and Safari's ITP blocks it outright. It works locally
+only because both apps are on `localhost`, where cookies ignore the port.
+
+**Migrations run separately, before deploying.** The distroless runtime image
+carries only the compiled binary — no Bun, no `drizzle-kit`, no `pg` — so it
+cannot migrate itself. From `apps/back`, against the production database:
+
+```bash
+DATABASE_URL=<production> bunx drizzle-kit migrate
+```
+
+Note `drizzle-kit` needs the `pg` devDependency; the `bun-sql` driver the app
+uses at runtime is not one the CLI can drive.
+
 ## Svelte MCP Tools
 
 You are able to use the Svelte MCP server, where you have access to comprehensive Svelte 5 and SvelteKit documentation. Here's how to use the available tools effectively:

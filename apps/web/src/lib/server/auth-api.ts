@@ -1,0 +1,80 @@
+import { parseSetCookieHeader } from "better-auth/cookies";
+import { PUBLIC_API_URL } from "$env/static/public";
+import type { Cookies } from "@sveltejs/kit";
+
+const API_BASE = PUBLIC_API_URL.replace(/\/$/, "");
+
+type AuthResponse = {
+	ok: boolean;
+	status: number;
+	message: string;
+	data: Record<string, unknown> | null;
+};
+
+/**
+ * Relay the API's `Set-Cookie` headers onto this response.
+ *
+ * The API and the app are separate origins, so its cookies have to be re-issued
+ * by SvelteKit. Going through `cookies.set` rather than appending raw headers
+ * lets SvelteKit reconcile them with anything else set during the request, and
+ * keeps `Domain` intact for the cross-subdomain deployment.
+ */
+function relayCookies(response: Response, cookies: Cookies) {
+	for (const raw of response.headers.getSetCookie()) {
+		for (const [name, attributes] of parseSetCookieHeader(raw)) {
+			const expires = attributes.expires;
+			cookies.set(name, attributes.value ?? "", {
+				path: attributes.path ?? "/",
+				httpOnly: attributes.httponly ?? false,
+				secure: attributes.secure ?? false,
+				sameSite: (attributes.samesite as "lax" | "strict" | "none" | undefined) ?? "lax",
+				domain: attributes.domain,
+				maxAge: attributes["max-age"],
+				expires: expires ? new Date(expires as string | number | Date) : undefined,
+			});
+		}
+	}
+}
+
+/**
+ * POST to a Better Auth endpoint from the server, relaying any session cookies.
+ *
+ * `fetch` must be the request-scoped `event.fetch` so `handleFetch` can attach
+ * the incoming cookie for calls that need an existing session. `origin` must be
+ * an entry in the backend's `trustedOrigins`.
+ */
+export async function callAuth(
+	path: string,
+	body: unknown,
+	{ fetch, cookies, origin }: { fetch: typeof globalThis.fetch; cookies: Cookies; origin: string },
+): Promise<AuthResponse> {
+	let response: Response;
+	try {
+		response = await fetch(`${API_BASE}/api/auth/${path}`, {
+			method: "POST",
+			// Better Auth checks Origin against `trustedOrigins` and answers 403
+			// "Invalid origin" without it — server-to-server calls carry no browser
+			// Origin, so it has to be set explicitly to the app's public origin.
+			headers: {
+				"content-type": "application/json",
+				accept: "application/json",
+				origin,
+			},
+			body: JSON.stringify(body),
+		});
+	} catch {
+		// Backend unreachable — surface it as a form error rather than a 500.
+		return { ok: false, status: 503, message: "Could not reach the server. Try again.", data: null };
+	}
+
+	relayCookies(response, cookies);
+
+	const data = (await response.json().catch(() => null)) as Record<string, unknown> | null;
+
+	return {
+		ok: response.ok,
+		status: response.status,
+		message: typeof data?.message === "string" ? data.message : "",
+		data,
+	};
+}

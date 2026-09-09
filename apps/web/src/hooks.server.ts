@@ -2,7 +2,9 @@ import { getCookieCache } from "better-auth/cookies";
 import { authClient } from "$lib/auth-client";
 import { PUBLIC_API_URL } from "$env/static/public";
 import { BETTER_AUTH_SECRET } from "$env/static/private";
-import type { Handle } from "@sveltejs/kit";
+import type { Handle, HandleFetch, HandleServerError } from "@sveltejs/kit";
+
+const API_ORIGIN = new URL(PUBLIC_API_URL).origin;
 
 export const handle: Handle = async ({ event, resolve }) => {
 	// Fast path: Better Auth's signed cookie cache (5-min TTL) — no backend call.
@@ -39,15 +41,43 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 	event.locals.user = session?.user ?? null;
 
-	// SvelteKit's default filter already preloads js and css. Adding "font" opted
-	// in every Geist unicode-range subset, most of which the page never renders.
-	const response = await resolve(event);
+	const response = await resolve(event, {
+		// SvelteKit preloads js and css by default but never fonts, "since this
+		// may cause unnecessary files to be downloaded". That caveat does not
+		// apply here: layout.css declares exactly one @font-face and the build
+		// emits a single .woff2, so preloading it is a straight LCP win on a
+		// render-blocking asset.
+		preload: ({ type, path }) =>
+			type === "js" || type === "css" || (type === "font" && path.endsWith(".woff2")),
+	});
 
-	// Relay the refreshed cache cookie (dev/localhost: same host, so it applies;
-	// for cross-subdomain prod, enable advanced.crossSubDomainCookies on the backend).
+	// Relay the refreshed cache cookie.
 	for (const cookie of refreshedCookies) {
 		response.headers.append("set-cookie", cookie);
 	}
 	return response;
 };
 
+// In production the app and the API are sibling subdomains sharing a parent
+// cookie domain. SvelteKit deliberately does not forward such cookies through
+// `event.fetch` — it "has no way to know which domain the cookie belongs to" —
+// so server-side calls to the API would arrive unauthenticated. Attaching the
+// cookie here fixes it once, for every `event.fetch` caller.
+export const handleFetch: HandleFetch = ({ event, request, fetch }) => {
+	if (new URL(request.url).origin === API_ORIGIN) {
+		const cookie = event.request.headers.get("cookie");
+		if (cookie) request.headers.set("cookie", cookie);
+	}
+
+	return fetch(request);
+};
+
+export const handleError: HandleServerError = ({ error, event, status, message }) => {
+	const errorId = crypto.randomUUID();
+
+	// The full error stays server-side; the client only ever sees the generic
+	// message plus this id, which is enough to correlate a support report.
+	console.error(`[server ${errorId}] ${status} ${event.request.method} ${event.url.pathname}`, error);
+
+	return { message, errorId };
+};
