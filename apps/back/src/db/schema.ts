@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm";
-import { pgTable, text, timestamp, boolean, index, uniqueIndex } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, boolean, index } from "drizzle-orm/pg-core";
 
 export const user = pgTable("user", {
   id: text("id").primaryKey(),
@@ -37,8 +37,11 @@ export const account = pgTable(
   "account",
   {
     id: text("id").primaryKey(),
-    // Better Auth >= 1.7 scopes account identity by issuer, not provider_id.
-    issuer: text("issuer").notNull(),
+    // Better Auth 1.7.0-1.7.2 required this and keyed account identity on it.
+    // 1.7.3 withdrew the requirement and no longer writes the column, so a
+    // NOT NULL here rejects every insert. Kept nullable rather than dropped,
+    // per the upgrade guide, so existing rows and a rollback stay possible.
+    issuer: text("issuer"),
     accountId: text("account_id").notNull(),
     providerId: text("provider_id").notNull(),
     userId: text("user_id")
@@ -56,10 +59,7 @@ export const account = pgTable(
       .$onUpdate(() => /* @__PURE__ */ new Date())
       .notNull(),
   },
-  (table) => [
-    index("account_userId_idx").on(table.userId),
-    uniqueIndex("account_issuer_accountId_idx").on(table.issuer, table.accountId),
-  ],
+  (table) => [index("account_userId_idx").on(table.userId)],
 );
 
 export const verification = pgTable(

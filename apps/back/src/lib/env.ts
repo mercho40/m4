@@ -13,3 +13,9 @@ function required(name: string): string {
 export const DATABASE_URL = required("DATABASE_URL");
 export const BETTER_AUTH_URL = required("BETTER_AUTH_URL");
 export const WEB_URL = required("WEB_URL");
+
+// Optional. Set to the shared parent domain in production (e.g. "example.com")
+// when the web app and this API run on sibling subdomains, so the session
+// cookie is visible to both. Leave unset in development, where both run on
+// localhost and cookies are already shared across ports.
+export const COOKIE_DOMAIN = process.env.COOKIE_DOMAIN;

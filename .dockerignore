@@ -1,0 +1,40 @@
+# Build context is the repo root (see apps/back/Dockerfile). Keep it small and,
+# more importantly, keep secrets out of the image.
+
+# Secrets — these must never enter the build context. Bun auto-loads .env from
+# the working directory, so a stray copy would silently override the container
+# environment Haloy injects.
+**/.env
+**/.env.*
+!**/.env.example
+
+# Installed and generated
+node_modules
+**/node_modules
+apps/web/.svelte-kit
+apps/web/build
+apps/web/.vercel
+apps/back/server
+.turbo
+**/.turbo
+
+# Frontend — deployed to Vercel, not part of this image
+apps/web/src
+apps/web/static
+apps/web/svelte.config.js
+apps/web/vite.config.ts
+apps/web/components.json
+
+# Version control and local tooling
+.git
+.gitignore
+apps/web/.playwright-cli
+
+# Agent tooling and docs — no effect on the binary
+.agents
+.claude
+.mcp.json
+AGENTS.md
+CLAUDE.md
+README.md
+docs

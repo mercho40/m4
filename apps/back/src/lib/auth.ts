@@ -1,7 +1,7 @@
 import { betterAuth } from "better-auth/minimal";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { db } from "@back/db/drizzle";
-import { BETTER_AUTH_URL, WEB_URL } from "@back/lib/env";
+import { BETTER_AUTH_URL, COOKIE_DOMAIN, WEB_URL } from "@back/lib/env";
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
@@ -39,9 +39,18 @@ export const auth = betterAuth({
       : {}),
   },
   trustedOrigins: [WEB_URL],
-  // Joined session reads — one query instead of two on getSession.
-  // Lives under advanced.database; `experimental` is stored but never read.
-  advanced: { database: { joins: true } },
+  advanced: {
+    // Joined session reads — one query instead of two on getSession.
+    // Lives under advanced.database; `experimental` is stored but never read.
+    database: { joins: true },
+    // In production the web app and this API sit on sibling subdomains, so the
+    // session cookie has to be scoped to the shared parent or the browser will
+    // not send it to the web origin — which is where hooks.server.ts reads it.
+    // This also keeps Safari's ITP from treating the API as a third party.
+    ...(COOKIE_DOMAIN
+      ? { crossSubDomainCookies: { enabled: true, domain: COOKIE_DOMAIN } }
+      : {}),
+  },
   session: {
     cookieCache: {
       enabled: true,
