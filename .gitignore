@@ -26,7 +26,10 @@ coverage
 # Build Outputs
 build
 dist
-**/**/server
+# The compiled Elysia binary, anchored. A bare `**/**/server` also matched
+# SvelteKit's conventional `src/lib/server/` directory, silently excluding
+# server-only modules that tracked routes import.
+/apps/back/server
 
 
 # Debug
@@ -45,3 +48,7 @@ yarn-error.log*
 # Only per-user state stays ignored:
 .claude/settings.local.json
 skills-lock.json
+
+# Local tooling artifacts
+apps/web/.playwright-cli/
+*.swp
