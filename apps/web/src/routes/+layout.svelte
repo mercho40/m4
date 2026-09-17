@@ -1,6 +1,5 @@
 <script lang="ts">
 	import "./layout.css";
-	import { ModeWatcher } from "mode-watcher";
 
 	let { children } = $props();
 </script>
@@ -11,5 +10,4 @@
 >
 	Skip to main content
 </a>
-<ModeWatcher />
 {@render children()}

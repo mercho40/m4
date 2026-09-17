@@ -23,7 +23,6 @@
     "bits-ui": "^2.19.1",
     "clsx": "^2.1.1",
     "elysia": "^1.4.30",
-    "mode-watcher": "^1.1.0",
     "svelte": "^5.57.0",
     "svelte-check": "^4.7.6",
     "tailwind-merge": "^3.6.0",

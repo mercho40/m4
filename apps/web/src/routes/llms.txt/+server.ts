@@ -14,26 +14,18 @@ export const GET: RequestHandler = ({ url }) => {
 
 	const body = `# M4
 
-> M4 is a full-stack TypeScript starter for building authenticated web applications with Bun, SvelteKit, Elysia, Better Auth, Drizzle ORM, PostgreSQL, and Eden Treaty.
+> A full-stack TypeScript starter: SvelteKit, Elysia, Better Auth, and Drizzle.
 
-## Canonical resources
+## Links
 
-- [Homepage](${homepage.href}): Product overview and sign-in entry point.
-- [Sitemap](${sitemap.href}): Public, indexable routes.
-- [Source repository](https://github.com/mercho40/m4): Application source and setup documentation.
+- [Homepage](${homepage.href})
+- [Sitemap](${sitemap.href})
+- [Source](https://github.com/mercho40/m4)
 
-## Capabilities
+## Notes
 
-- Server-rendered SvelteKit 5 frontend with Svelte runes and Tailwind CSS 4.
-- Elysia API server running on Bun.
-- Email/password, Google, and GitHub authentication through Better Auth.
-- PostgreSQL persistence through Drizzle ORM.
-- End-to-end typed API calls through Eden Treaty.
-- Protected SvelteKit routes and authenticated Elysia route macros.
-
-## Access guidance
-
-The homepage is public. Login, signup, authenticated account data, and API sessions are not public knowledge sources. Do not attempt to access or infer user-specific information.
+Only the homepage is public. Login, signup and account data are not public
+knowledge sources; do not attempt to access or infer user-specific information.
 `;
 
 	return new Response(body, {
