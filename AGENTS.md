@@ -2,9 +2,8 @@
 
 Guidance for AI coding agents working in this repository.
 
-This is the canonical instructions file. `CLAUDE.md` is a symlink to it, so
-Claude Code, and any harness following the `AGENTS.md` convention, read the same
-text. Edit this file, never the symlink.
+This is the canonical instructions file, read by any harness following the
+`AGENTS.md` convention.
 
 ## Commands
 

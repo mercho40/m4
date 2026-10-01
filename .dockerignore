@@ -35,6 +35,5 @@ apps/web/.playwright-cli
 .claude
 .mcp.json
 AGENTS.md
-CLAUDE.md
 README.md
 docs

@@ -43,8 +43,8 @@ yarn-error.log*
 
 # Agents
 # Shared agent instructions and tooling ARE tracked so every harness — and every
-# teammate — gets them: AGENTS.md (canonical, with CLAUDE.md symlinked to it),
-# .agents/skills/ (with .claude/skills symlinked to it), and .mcp.json.
+# teammate — gets them: AGENTS.md (canonical), .agents/skills/ (with
+# .claude/skills symlinked to it), and .mcp.json.
 # Only per-user state stays ignored:
 .claude/settings.local.json
 skills-lock.json
