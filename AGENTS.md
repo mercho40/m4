@@ -147,7 +147,7 @@ Prefer these over recalling API surface from memory — several of these librari
 changed shape recently and the wrong-version answer is the common failure.
 
 - **Turborepo:** `turbo docs <query>` returns URLs pinned to the installed
-  version (v2-10-11.turborepo.dev). Append `.md` to fetch any of them as
+  version (v2-11-6.turborepo.dev). Append `.md` to fetch any of them as
   markdown. This is the defense against turbo 1.x `pipeline` syntax.
 - **Tailwind is v4, CSS-first.** Theme config lives in `@theme` inside
   `apps/web/src/routes/layout.css` (declared in `components.json`). Never create
@@ -160,7 +160,18 @@ changed shape recently and the wrong-version answer is the common failure.
   `https://www.shadcn-svelte.com/docs/components/button.md`.
 - **Drizzle:** `https://orm.drizzle.team/llms.txt` (37 KB index) — fetch the
   specific page from there. Skip `llms-full.txt`; it is 3.5 MB and mixes 1.0-beta
-  notes into stable docs, which misleads against the installed 0.45.2.
+  notes into stable docs, which misleads against the installed 0.45.3.
 - **Elysia:** `https://elysiajs.com/llms.txt`, and the vendored skill in
   `.agents/skills/elysiajs/` already covers the macro, lifecycle, Eden, CORS, and
   the Better Auth / Drizzle / SvelteKit integrations.
+
+<!-- BEGIN:turborepo-agent-rules -->
+
+# This is NOT the Turborepo you know
+
+Turborepo configuration, task behavior, and CLI commands can vary between installed versions and may differ from your training data. Resolve the `turbo` package from this file's directory or relevant workspace; in monorepos, it may not be visible from the repository root. For example, run `node -p "require.resolve('turbo/package.json')"` from a workspace that depends on `turbo`.
+
+Read `docs/README.md` inside that installed package first, then read the relevant pages from its `docs/` directory before changing Turborepo configuration or commands. Heed deprecation notices. These bundled docs match the installed package version and are available without network access.
+
+This block is written and re-added by `turbo` before repository-scoped commands when an AI agent is detected. In the Turborepo source repository, its template is defined in `crates/turborepo-cli/src/cli/agent_guidance.rs`. Removing the managed block while updates are enabled means a later qualifying invocation will add it again. Set `"agentGuidance": false` in the root `turbo.json` or `turbo.jsonc` to opt out; this does not remove an existing block. Keep the block committed with your work to avoid an uncommitted change on the next agent invocation.
+<!-- END:turborepo-agent-rules -->
