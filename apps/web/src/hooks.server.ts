@@ -1,8 +1,8 @@
+import type { Handle, HandleFetch, HandleServerError } from "@sveltejs/kit/hooks";
 import { getCookieCache } from "better-auth/cookies";
-import { authClient } from "$lib/auth-client";
-import { PUBLIC_API_URL } from "$env/static/public";
-import { BETTER_AUTH_SECRET } from "$env/static/private";
-import type { Handle, HandleFetch, HandleServerError } from "@sveltejs/kit";
+import { authClient } from "#lib/auth-client.js";
+import { PUBLIC_API_URL } from "$app/env/public";
+import { BETTER_AUTH_SECRET } from "$app/env/private";
 
 const API_ORIGIN = new URL(PUBLIC_API_URL).origin;
 
@@ -10,10 +10,10 @@ export const handle: Handle = async ({ event, resolve }) => {
 	// Fast path: Better Auth's signed cookie cache (5-min TTL) — no backend call.
 	// The cache cookie's `__Secure-` prefix is decided by the WRITER (the API),
 	// so derive it from the API URL rather than this process's own NODE_ENV.
-	// The secret must be passed explicitly. SvelteKit reads .env for its `$env/*`
-	// modules but does not populate `process.env`, so better-auth's own
-	// `env.BETTER_AUTH_SECRET` fallback is undefined here and it throws as soon
-	// as a session_data cookie exists — i.e. on every request after signing in.
+	// The secret must be passed explicitly. SvelteKit reads .env for its
+	// `$app/env/*` modules but does not populate `process.env`, so better-auth's
+	// own `env.BETTER_AUTH_SECRET` fallback is undefined here and it throws as
+	// soon as a session_data cookie exists — i.e. on every request after signing in.
 	let session = await getCookieCache(event.request, {
 		secret: BETTER_AUTH_SECRET,
 		isSecure: PUBLIC_API_URL.startsWith("https://"),
@@ -72,12 +72,18 @@ export const handleFetch: HandleFetch = ({ event, request, fetch }) => {
 	return fetch(request);
 };
 
-export const handleError: HandleServerError = ({ error, event, status, message }) => {
+// SvelteKit 3 routes *every* error through this hook, not just unexpected ones.
+// App errors (thrown with `error(...)`) and framework errors (404s and the
+// like) already carry a body that is safe to show, and a 404 is not an incident
+// worth an id or a log line — so only genuinely unexpected errors are reported.
+export const handleError: HandleServerError = ({ kind, error, event }) => {
+	if (kind === "app" || kind === "framework") return error;
+
 	const errorId = crypto.randomUUID();
 
 	// The full error stays server-side; the client only ever sees the generic
 	// message plus this id, which is enough to correlate a support report.
-	console.error(`[server ${errorId}] ${status} ${event.request.method} ${event.url.pathname}`, error);
+	console.error(`[server ${errorId}] ${event.request.method} ${event.url.pathname}`, error);
 
-	return { message, errorId };
+	return { errorId };
 };

@@ -29,11 +29,11 @@ Bun monorepo with Turborepo. Two apps, no shared packages yet.
 
 **`apps/back`** (port 3000) — Elysia API server with Better Auth, Drizzle ORM, PostgreSQL.
 
-**`apps/web`** (port 3001) — SvelteKit 5 frontend with Svelte runes and Tailwind CSS 4, deployed to Vercel via `@sveltejs/adapter-vercel`. Single dark theme: there is no light palette, no `.dark` class and no theme switcher, so the former `dark:` utilities were promoted to base styles in the UI components.
+**`apps/web`** (port 3001) — SvelteKit 3 frontend on Svelte 5 with runes and Tailwind CSS 4, deployed to Vercel via `@sveltejs/adapter-vercel`. Single dark theme: there is no light palette, no `.dark` class and no theme switcher, so the former `dark:` utilities were promoted to base styles in the UI components.
 
 ### Type-Safe API Communication
 
-Eden Treaty provides end-to-end type safety between frontend and backend. The backend exports `type App = typeof app` from `src/index.ts`. The frontend imports that type in `src/lib/api.ts` via the `@back/*` alias (declared in `svelte.config.js` under `kit.alias`; `tsconfig.json` inherits the generated mapping).
+Eden Treaty provides end-to-end type safety between frontend and backend. The backend exports `type App = typeof app` from `src/index.ts`. The frontend imports that type in `src/lib/api.ts` via the `@back/*` alias (declared in `vite.config.ts` as a `sveltekit()` plugin option; `tsconfig.json` inherits the generated mapping).
 
 `src/lib/api.ts` exports a factory, not a singleton: `createApi(fetch)` returns a Treaty client bound to the fetch you pass, so server loads can hand it `event.fetch`. Nothing imports it yet — `/health` is currently the only Treaty-reachable route, since Better Auth's endpoints are mounted outside Elysia's typed router.
 
@@ -50,7 +50,7 @@ When calling a protected endpoint from a server load, forward the cookie:
 
 **Backend route protection:** an Elysia auth macro is defined in `src/index.ts` — add `{ auth: true }` to any route options and it resolves the session from request headers, returns 401 if missing, and provides `user` and `session` to the handler. No route uses it yet; `/health` is public.
 
-**Sign in / sign up / sign out** are server form actions, so they work without JavaScript; `use:enhance` only removes the full-page reload. `login/+page.server.ts` and `signup/+page.server.ts` post through `$lib/server/auth-api.ts`, which sets an explicit `Origin` header — Better Auth validates it against `trustedOrigins` and answers 403 "Invalid origin" for server-to-server calls, which carry none — and relays the API's `Set-Cookie` through `event.cookies`. Sign-out posts to `logout/+server.ts`. `authClient` is now used only by `hooks.server.ts`, never in the browser.
+**Sign in / sign up / sign out** are server form actions, so they work without JavaScript; `use:enhance` only removes the full-page reload. `login/+page.server.ts` and `signup/+page.server.ts` post through `#lib/server/auth-api.ts`, which sets an explicit `Origin` header — Better Auth validates it against `trustedOrigins` and answers 403 "Invalid origin" for server-to-server calls, which carry none — and relays the API's `Set-Cookie` through `event.cookies`. Sign-out posts to `logout/+server.ts`. `authClient` is now used only by `hooks.server.ts`, never in the browser.
 
 Both pages also redirect an already-authenticated visitor with `redirect(303, "/")`, mirroring the `(protected)` guard in the opposite direction.
 
@@ -62,6 +62,10 @@ Drizzle ORM with PostgreSQL. Schema in `apps/back/src/db/schema.ts`. Four tables
 
 ### UI Components
 
+Library code is imported through the `#lib/*` subpath import declared in
+`apps/web/package.json` (SvelteKit 3 dropped the generated `$lib` alias), and
+those specifiers need a file extension: `#lib/utils.js`, not `#lib/utils`.
+
 `src/lib/components/ui/` contains shadcn-svelte style components (bits-ui + Tailwind). `src/lib/components/` contains app-level components (login-form, signup-form). Use `cn()` from `src/lib/utils.ts` for class merging — it wraps tailwind-variants' merger, not a second tailwind-merge copy.
 
 ## Environment Variables
@@ -72,13 +76,20 @@ Drizzle ORM with PostgreSQL. Schema in `apps/back/src/db/schema.ts`. Four tables
 
 **`apps/web/.env`:** `PUBLIC_API_URL`, `PUBLIC_SITE_URL`, `BETTER_AUTH_SECRET` (must match backend)
 
+Each one is declared in `src/env.ts` via `defineEnvVars`, which is what makes it
+importable from `$app/env/public` or `$app/env/private` — SvelteKit 3 no longer
+derives `$env/*` modules from the ambient environment. Undeclared or unset
+variables resolve to the empty string instead of failing, so `PUBLIC_API_URL`
+and `BETTER_AUTH_SECRET` carry validators that throw. Both are `static`, meaning
+they are inlined at build time and must be present for `vite build`.
+
 `PUBLIC_SITE_URL` is required **at build time**: `robots.txt`, `sitemap.xml` and `llms.txt` are prerendered, and `getSiteOrigin` throws during the build rather than bake SvelteKit's prerender placeholder origin into files crawlers read.
 
 ## Deployment
 
 **`apps/web` → Vercel.** Uses `@sveltejs/adapter-vercel`. Set the Vercel project's
 Node version to **24**: the adapter only accepts 20, 22 or 24, and
-`svelte.config.js` pins `runtime: "nodejs24.x"` because this machine's Node (26)
+`vite.config.ts` pins `runtime: "nodejs24.x"` because this machine's Node (26)
 is outside the set the adapter can infer from. Environment: `PUBLIC_API_URL`
 (the API origin) and `BETTER_AUTH_SECRET` (must match the backend's).
 

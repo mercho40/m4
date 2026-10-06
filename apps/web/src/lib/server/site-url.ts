@@ -1,5 +1,5 @@
-import { building } from "$app/environment";
-import { env } from "$env/dynamic/public";
+import { building } from "$app/env";
+import { PUBLIC_SITE_URL } from "$app/env/public";
 
 /**
  * Absolute origin for canonical URLs, the sitemap, robots and llms.txt.
@@ -11,7 +11,7 @@ import { env } from "$env/dynamic/public";
  * engines read, so fail the build instead.
  */
 export function getSiteOrigin(requestUrl: URL): string {
-	const configuredUrl = env.PUBLIC_SITE_URL?.trim();
+	const configuredUrl = PUBLIC_SITE_URL.trim();
 
 	if (!configuredUrl && building) {
 		throw new Error(
@@ -20,4 +20,19 @@ export function getSiteOrigin(requestUrl: URL): string {
 	}
 
 	return configuredUrl ? new URL(configuredUrl).origin : requestUrl.origin;
+}
+
+/**
+ * Absolute URL for a route, on the canonical origin.
+ *
+ * `resolve` from `$app/paths` returns a path *relative to the page being
+ * rendered* during SSR (`./login`, not `/login`), which is not something you
+ * can paste into a sitemap or a robots.txt directive. Resolving it against the
+ * request URL turns it back into a real pathname — preserving any configured
+ * base path — which is then re-homed on the canonical origin.
+ */
+export function siteUrl(requestUrl: URL, resolvedPath: string): URL {
+	const { pathname } = new URL(resolvedPath, requestUrl);
+
+	return new URL(pathname, getSiteOrigin(requestUrl));
 }

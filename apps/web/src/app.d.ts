@@ -8,11 +8,11 @@ declare global {
 			user: CookieSession["user"] | null;
 		}
 
-		// Shape of `page.error`. `message` is always present; `errorId` is
+		// Shape of `page.error`. `status` and `message` are built in; `errorId` is
 		// generated in handleError so a user can quote it and it can be matched
-		// against the server logs without exposing the underlying error.
+		// against the server logs without exposing the underlying error. It is
+		// optional because expected errors pass through without one.
 		interface Error {
-			message: string;
 			errorId?: string;
 		}
 	}

@@ -1,4 +1,4 @@
-import { getSiteOrigin } from "$lib/server/site-url";
+import { getSiteOrigin } from "#lib/server/site-url.js";
 import type { LayoutServerLoad } from "./$types";
 
 export const load: LayoutServerLoad = ({ locals, url }) => ({

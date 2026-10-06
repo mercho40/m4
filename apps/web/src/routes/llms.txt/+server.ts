@@ -1,5 +1,5 @@
-import { base } from "$app/paths";
-import { getSiteOrigin } from "$lib/server/site-url";
+import { resolve } from "$app/paths";
+import { siteUrl } from "#lib/server/site-url.js";
 import type { RequestHandler } from "./$types";
 
 // Static content: prerendered to a file on the CDN rather than deployed as a
@@ -8,9 +8,8 @@ import type { RequestHandler } from "./$types";
 export const prerender = true;
 
 export const GET: RequestHandler = ({ url }) => {
-	const siteOrigin = getSiteOrigin(url);
-	const homepage = new URL(`${base}/`, siteOrigin);
-	const sitemap = new URL(`${base}/sitemap.xml`, siteOrigin);
+	const homepage = siteUrl(url, resolve("/"));
+	const sitemap = siteUrl(url, resolve("/sitemap.xml"));
 
 	const body = `# M4
 

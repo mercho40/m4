@@ -1,5 +1,5 @@
 import { parseSetCookieHeader } from "better-auth/cookies";
-import { PUBLIC_API_URL } from "$env/static/public";
+import { PUBLIC_API_URL } from "$app/env/public";
 import type { Cookies } from "@sveltejs/kit";
 
 const API_BASE = PUBLIC_API_URL.replace(/\/$/, "");

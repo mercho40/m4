@@ -1,11 +1,12 @@
 <script lang="ts">
 	import { page } from "$app/state";
 	import { resolve } from "$app/paths";
-	import { Button } from "$lib/components/ui/button/index.js";
-	import * as Card from "$lib/components/ui/card/index.js";
+	import { Button } from "#lib/components/ui/button/index.js";
+	import * as Card from "#lib/components/ui/card/index.js";
 
-	// `error` is passed as a prop for rendering errors caught by the boundary
-	// (experimental.handleRenderingErrors); `page.error` covers load errors.
+	// `error` is passed as a prop for rendering errors, which SvelteKit 3 routes
+	// through the boundary around each +error.svelte; `page.error` covers load
+	// errors.
 	let { error }: { error?: App.Error } = $props();
 	const shown = $derived(error ?? page.error);
 	const status = $derived(page.status);

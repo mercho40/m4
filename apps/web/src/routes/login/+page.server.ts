@@ -1,6 +1,6 @@
 import { fail, redirect } from "@sveltejs/kit";
-import { callAuth } from "$lib/server/auth-api";
-import { getSiteOrigin } from "$lib/server/site-url";
+import { callAuth } from "#lib/server/auth-api.js";
+import { getSiteOrigin } from "#lib/server/site-url.js";
 import type { Actions, PageServerLoad } from "./$types";
 
 // Mirror image of the (protected) guard: the server already knows who this is,
@@ -54,6 +54,9 @@ export const actions: Actions = {
 			return fail(400, { message: result.message || "That sign-in provider is unavailable." });
 		}
 
-		redirect(303, target);
+		// `target` is the provider's authorization URL, so this leaves the app and
+		// SvelteKit 3 requires opting in. The URL is minted by our own backend,
+		// which only emits endpoints for providers it has credentials for.
+		redirect(303, target, { external: true });
 	},
 };

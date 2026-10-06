@@ -1,5 +1,5 @@
-import { base } from "$app/paths";
-import { getSiteOrigin } from "$lib/server/site-url";
+import { resolve } from "$app/paths";
+import { siteUrl } from "#lib/server/site-url.js";
 import type { RequestHandler } from "./$types";
 
 // Static content: prerendered to a file on the CDN rather than deployed as a
@@ -8,14 +8,14 @@ import type { RequestHandler } from "./$types";
 export const prerender = true;
 
 export const GET: RequestHandler = ({ url }) => {
-	const sitemap = new URL(`${base}/sitemap.xml`, getSiteOrigin(url));
+	const sitemap = siteUrl(url, resolve("/sitemap.xml"));
 
 	return new Response(
 		[
 			"User-agent: *",
 			"Allow: /",
-			`Disallow: ${base}/login`,
-			`Disallow: ${base}/signup`,
+			`Disallow: ${siteUrl(url, resolve("/login")).pathname}`,
+			`Disallow: ${siteUrl(url, resolve("/signup")).pathname}`,
 			`Sitemap: ${sitemap.href}`,
 		].join("\n"),
 		{

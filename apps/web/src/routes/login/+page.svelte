@@ -1,5 +1,5 @@
 <script lang="ts">
-	import LoginForm from "$lib/components/login-form.svelte";
+	import LoginForm from "#lib/components/login-form.svelte";
 
 	// The action's return value, passed down so the form can show validation
 	// errors and refill what the user typed.

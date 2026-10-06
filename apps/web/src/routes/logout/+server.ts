@@ -1,6 +1,6 @@
 import { resolve } from "$app/paths";
-import { PUBLIC_API_URL } from "$env/static/public";
-import { getSiteOrigin } from "$lib/server/site-url";
+import { PUBLIC_API_URL } from "$app/env/public";
+import { getSiteOrigin } from "#lib/server/site-url.js";
 import type { RequestHandler } from "./$types";
 
 export const POST: RequestHandler = async ({ fetch, request, url }) => {
