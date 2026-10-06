@@ -47,9 +47,12 @@ export const variables = defineEnvVars({
 		schema: (value) => (building ? (value ?? "") : required("BETTER_AUTH_SECRET")(value)),
 	},
 
-	// Dynamic so a deployment can change it without a rebuild, and optional in
-	// dev, where `getSiteOrigin` falls back to the request's own origin. It only
-	// *has* to be set when building, which `getSiteOrigin` enforces, because it
-	// is baked into the prerendered robots.txt, sitemap.xml and llms.txt.
+	// Dynamic, so the server reads it at startup: the canonical URL on every
+	// server-rendered page and the Origin that the auth actions send to Better
+	// Auth both come from it. The prerendered robots.txt, sitemap.xml and
+	// llms.txt are generated during the build and never re-rendered, though, so
+	// they keep the build-time value until the next build; set it for both.
+	// Optional at runtime, where `getSiteOrigin` falls back to the request's own
+	// origin, but required when building, which `getSiteOrigin` enforces.
 	PUBLIC_SITE_URL: { public: true, schema: optionalSiteUrl },
 });
