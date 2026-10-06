@@ -10,9 +10,9 @@ Both are tracked, so a fresh clone gets the skills and the symlink together.
 | Skill | Upstream | Commit | Path in upstream |
 |---|---|---|---|
 | `elysiajs` | https://github.com/elysiajs/skills | `8fd8031` | `elysia/` |
-| `shadcn-svelte` | https://github.com/huntabyte/shadcn-svelte | `dabbd4c` | `skills/shadcn-svelte/` |
-| `svelte-code-writer` | https://github.com/sveltejs/ai-tools | `7e98403` | `tools/skills/svelte-code-writer/` |
-| `svelte-core-bestpractices` | https://github.com/sveltejs/ai-tools | `7e98403` | `tools/skills/svelte-core-bestpractices/` |
+| `shadcn-svelte` | https://github.com/huntabyte/shadcn-svelte | `493481f` | `skills/shadcn-svelte/` |
+| `svelte-code-writer` | https://github.com/sveltejs/ai-tools | `6b5d0da` | `tools/skills/svelte-code-writer/` |
+| `svelte-core-bestpractices` | https://github.com/sveltejs/ai-tools | `6b5d0da` | `tools/skills/svelte-core-bestpractices/` |
 
 `.claude/agents/svelte-file-editor.md` comes from the same repo and commit
 (`tools/agents/svelte-file-editor.md`). It is Claude-specific, so it lives under
