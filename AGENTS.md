@@ -33,7 +33,7 @@ Bun monorepo with Turborepo. Two apps, no shared packages yet.
 
 ### Type-Safe API Communication
 
-Eden Treaty provides end-to-end type safety between frontend and backend. The backend exports `type App = typeof app` from `src/index.ts`. The frontend imports that type in `src/lib/api.ts` via the `@back/*` alias (declared in `vite.config.ts` as a `sveltekit()` plugin option; `tsconfig.json` inherits the generated mapping).
+Eden Treaty provides end-to-end type safety between frontend and backend. The backend exports `type App = typeof app` from `src/index.ts`, which `apps/back/package.json` publishes as that package's `.` export, so the frontend imports the type by package name in `src/lib/api.ts`: `import type { App } from "@repo/back"`.
 
 `src/lib/api.ts` exports a factory, not a singleton: `createApi(fetch)` returns a Treaty client bound to the fetch you pass, so server loads can hand it `event.fetch`. Nothing imports it yet — `/health` is currently the only Treaty-reachable route, since Better Auth's endpoints are mounted outside Elysia's typed router.
 
@@ -65,6 +65,14 @@ Drizzle ORM with PostgreSQL. Schema in `apps/back/src/db/schema.ts`. Four tables
 Library code is imported through the `#lib/*` subpath import declared in
 `apps/web/package.json` (SvelteKit 3 dropped the generated `$lib` alias), and
 those specifiers need a file extension: `#lib/utils.js`, not `#lib/utils`.
+
+`apps/back` follows the same convention with `#back/*` for its own internal
+imports. Neither app uses tsconfig `paths` or a SvelteKit `alias` any more:
+subpath imports resolve against the *importing file's* nearest `package.json`,
+so they keep working when the web app's type-check follows a type across the
+workspace boundary into `apps/back/src` — which is what the old `@back/*` alias
+existed to patch up. Use `.js` in these specifiers even though the files are
+`.ts`; that is the standard ESM form and both TypeScript and Bun map it.
 
 `src/lib/components/ui/` contains shadcn-svelte style components (bits-ui + Tailwind). `src/lib/components/` contains app-level components (login-form, signup-form). Use `cn()` from `src/lib/utils.ts` for class merging — it wraps tailwind-variants' merger, not a second tailwind-merge copy.
 

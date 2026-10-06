@@ -1,7 +1,7 @@
 import { Elysia } from "elysia";
-import { auth } from "@back/lib/auth";
+import { auth } from "#back/lib/auth.js";
 import { cors } from "@elysiajs/cors";
-import { WEB_URL } from "@back/lib/env";
+import { WEB_URL } from "#back/lib/env.js";
 
 // user middleware (compute user and session and pass to routes)
 const betterAuth = new Elysia({ name: "better-auth" })

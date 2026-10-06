@@ -19,13 +19,6 @@ export default defineConfig({
 			// version on 24 so the two agree. Drop this once the adapter reads the
 			// runtime from Vercel project config.
 			adapter: adapter({ runtime: "nodejs24.x" }),
-			// Deprecated in favour of subpath imports, but kept: `@back/*` also has
-			// to resolve the back app's *own* internal `@back/*` imports when
-			// TypeScript follows this one into ../back/src. Moving it means
-			// reworking that app's paths too.
-			alias: {
-				"@back/*": "../back/src/*",
-			},
 			dynamicCompileOptions: ({ filename }) =>
 				filename.includes("node_modules") ? undefined : { runes: true },
 		}),

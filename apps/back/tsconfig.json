@@ -24,11 +24,10 @@
     /* Modules */
     "module": "Preserve", /* Bundled by `bun build`; "Preserve" implies moduleResolution "bundler", which also resolves package.json "exports" subpaths (e.g. better-auth/adapters/drizzle). */
     // "rootDir": "./",                                  /* Specify the root folder within your source files. */
-    "paths": {
-      "@back/*": [
-        "./src/*"
-      ]
-    },
+    // Internal imports use the `#back/*` subpath import declared in package.json,
+    // which `moduleResolution: "bundler"` resolves natively — so no `paths` here.
+    // Unlike `paths`, it travels with the package, so the web app's type-check
+    // resolves these same specifiers when it follows a type into this source.
     // "rootDirs": [],                                   /* Allow multiple folders to be treated as one when resolving modules. */
     // "typeRoots": [],                                  /* Specify multiple folders that act like './node_modules/@types'. */
     "types": [

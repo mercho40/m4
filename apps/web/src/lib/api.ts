@@ -1,5 +1,5 @@
 import { treaty } from "@elysiajs/eden";
-import type { App } from "@back/index";
+import type { App } from "@repo/back";
 import { PUBLIC_API_URL } from "$app/env/public";
 
 export const createApi = (fetch: typeof globalThis.fetch) =>

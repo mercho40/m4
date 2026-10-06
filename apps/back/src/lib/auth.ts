@@ -1,7 +1,7 @@
 import { betterAuth } from "better-auth/minimal";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { db } from "@back/db/drizzle";
-import { BETTER_AUTH_URL, COOKIE_DOMAIN, WEB_URL } from "@back/lib/env";
+import { db } from "#back/db/drizzle.js";
+import { BETTER_AUTH_URL, COOKIE_DOMAIN, WEB_URL } from "#back/lib/env.js";
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, {

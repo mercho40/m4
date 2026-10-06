@@ -2,6 +2,12 @@
   "name": "@repo/back",
   "version": "1.0.50",
   "type": "module",
+  "imports": {
+    "#back/*": "./src/*"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "bun build --compile --minify --target bun --outfile server src/index.ts",
@@ -25,6 +31,5 @@
     "drizzle-kit": "^0.31.11",
     "pg": "^8.23.1",
     "typescript": "~6.0.3"
-  },
-  "module": "src/index.js"
+  }
 }
