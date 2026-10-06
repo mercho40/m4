@@ -11,13 +11,11 @@ export default defineConfig({
 		sveltekit({
 			// Deployed to Vercel as serverless functions.
 			//
-			// `runtime` is marked deprecated upstream, but it is required here: the
-			// adapter infers the default from the *local* Node version, and this
-			// machine runs Node 26, which is outside its supported set [20, 22, 24].
-			// Without it, `bun run build` fails locally and in CI even though the
-			// Vercel build itself would succeed. Keep the Vercel project's Node
-			// version on 24 so the two agree. Drop this once the adapter reads the
-			// runtime from Vercel project config.
+			// `runtime` is pinned because the adapter otherwise picks the Node
+			// version running the build, and only accepts 22 or 24. On Vercel that
+			// is the project's Node setting, but this machine runs Node 26, so
+			// `bun run build` fails locally without the pin. Keep the Vercel project
+			// on Node 24 so the two agree.
 			adapter: adapter({ runtime: "nodejs24.x" }),
 			dynamicCompileOptions: ({ filename }) =>
 				filename.includes("node_modules") ? undefined : { runes: true },

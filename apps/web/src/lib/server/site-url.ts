@@ -11,7 +11,8 @@ import { PUBLIC_SITE_URL } from "$app/env/public";
  * engines read, so fail the build instead.
  */
 export function getSiteOrigin(requestUrl: URL): string {
-	const configuredUrl = PUBLIC_SITE_URL.trim();
+	// Already trimmed and checked to be an absolute http(s) URL by src/env.ts.
+	const configuredUrl = PUBLIC_SITE_URL;
 
 	if (!configuredUrl && building) {
 		throw new Error(

@@ -86,20 +86,30 @@ existed to patch up. Use `.js` in these specifiers even though the files are
 
 Each one is declared in `src/env.ts` via `defineEnvVars`, which is what makes it
 importable from `$app/env/public` or `$app/env/private` — SvelteKit 3 no longer
-derives `$env/*` modules from the ambient environment. Undeclared or unset
-variables resolve to the empty string instead of failing, so `PUBLIC_API_URL`
-and `BETTER_AUTH_SECRET` carry validators that throw. Both are `static`, meaning
-they are inlined at build time and must be present for `vite build`.
+derives `$env/*` modules from the ambient environment. A declared variable
+with no schema must be set but may be empty, so `PUBLIC_API_URL` and
+`BETTER_AUTH_SECRET` use a validator that also rejects the empty string.
+
+- `PUBLIC_API_URL` is `static`: inlined at build time, so it must be present
+  for `vite build`.
+- `BETTER_AUTH_SECRET` is dynamic and only required at runtime, so the secret
+  never lands in the build output or in Turborepo's cache of it, where a cache
+  hit could ship a stale secret after rotation. Do not make it `static`.
+- `PUBLIC_SITE_URL` is dynamic and optional at runtime, but when set it must be
+  an absolute http(s) URL; a value like `example.com` fails at startup instead
+  of 500-ing every request.
 
 `PUBLIC_SITE_URL` is required **at build time**: `robots.txt`, `sitemap.xml` and `llms.txt` are prerendered, and `getSiteOrigin` throws during the build rather than bake SvelteKit's prerender placeholder origin into files crawlers read.
 
 ## Deployment
 
 **`apps/web` → Vercel.** Uses `@sveltejs/adapter-vercel`. Set the Vercel project's
-Node version to **24**: the adapter only accepts 20, 22 or 24, and
+Node version to **24**: adapter-vercel 7 only accepts 22 or 24, and
 `vite.config.ts` pins `runtime: "nodejs24.x"` because this machine's Node (26)
 is outside the set the adapter can infer from. Environment: `PUBLIC_API_URL`
-(the API origin) and `BETTER_AUTH_SECRET` (must match the backend's).
+(the API origin) and `PUBLIC_SITE_URL` (the public site URL), both needed at
+build time, and `BETTER_AUTH_SECRET` (must match the backend's), needed at
+runtime.
 
 **`apps/back` → Docker, deployed with Haloy.** Build context is the repo root,
 not `apps/back`, because the Bun workspace install needs the root lockfile:

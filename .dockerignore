@@ -21,7 +21,6 @@ apps/back/server
 # Frontend — deployed to Vercel, not part of this image
 apps/web/src
 apps/web/static
-apps/web/svelte.config.js
 apps/web/vite.config.ts
 apps/web/components.json
 

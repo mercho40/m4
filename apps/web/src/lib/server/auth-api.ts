@@ -4,6 +4,22 @@ import type { Cookies } from "@sveltejs/kit";
 
 const API_BASE = PUBLIC_API_URL.replace(/\/$/, "");
 
+/**
+ * Origin of each social provider's authorization endpoint, as Better Auth
+ * builds it. The sign-in actions let `redirect` leave the app only for the
+ * chosen provider's origin, so a backend that answered with anything else
+ * fails loudly instead of becoming an open redirect.
+ */
+export const SOCIAL_PROVIDER_ORIGINS = {
+	google: "https://accounts.google.com",
+	github: "https://github.com",
+} as const;
+
+export type SocialProvider = keyof typeof SOCIAL_PROVIDER_ORIGINS;
+
+export const isSocialProvider = (value: string): value is SocialProvider =>
+	Object.hasOwn(SOCIAL_PROVIDER_ORIGINS, value);
+
 type AuthResponse = {
 	ok: boolean;
 	status: number;

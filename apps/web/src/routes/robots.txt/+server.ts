@@ -14,8 +14,9 @@ export const GET: RequestHandler = ({ url }) => {
 		[
 			"User-agent: *",
 			"Allow: /",
-			`Disallow: ${siteUrl(url, resolve("/login")).pathname}`,
-			`Disallow: ${siteUrl(url, resolve("/signup")).pathname}`,
+			// Only paths here, so there is no need for the canonical origin.
+			`Disallow: ${new URL(resolve("/login"), url).pathname}`,
+			`Disallow: ${new URL(resolve("/signup"), url).pathname}`,
 			`Sitemap: ${sitemap.href}`,
 		].join("\n"),
 		{

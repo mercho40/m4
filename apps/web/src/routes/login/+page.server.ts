@@ -1,5 +1,5 @@
 import { fail, redirect } from "@sveltejs/kit";
-import { callAuth } from "#lib/server/auth-api.js";
+import { callAuth, isSocialProvider, SOCIAL_PROVIDER_ORIGINS } from "#lib/server/auth-api.js";
 import { getSiteOrigin } from "#lib/server/site-url.js";
 import type { Actions, PageServerLoad } from "./$types";
 
@@ -36,7 +36,7 @@ export const actions: Actions = {
 	social: async ({ request, fetch, cookies, url }) => {
 		const provider = String((await request.formData()).get("provider") ?? "");
 
-		if (provider !== "google" && provider !== "github") {
+		if (!isSocialProvider(provider)) {
 			return fail(400, { message: "Unknown sign-in provider." });
 		}
 
@@ -54,9 +54,10 @@ export const actions: Actions = {
 			return fail(400, { message: result.message || "That sign-in provider is unavailable." });
 		}
 
-		// `target` is the provider's authorization URL, so this leaves the app and
-		// SvelteKit 3 requires opting in. The URL is minted by our own backend,
-		// which only emits endpoints for providers it has credentials for.
-		redirect(303, target, { external: true });
+		// `target` is minted by our backend and leaves the app, which SvelteKit 3
+		// only permits for allowlisted origins. Allowing just the chosen
+		// provider's means a misconfigured or compromised backend produces an
+		// error here rather than an open redirect.
+		redirect(303, target, { external: [SOCIAL_PROVIDER_ORIGINS[provider]] });
 	},
 };

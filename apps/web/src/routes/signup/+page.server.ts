@@ -1,5 +1,5 @@
 import { fail, redirect } from "@sveltejs/kit";
-import { callAuth } from "#lib/server/auth-api.js";
+import { callAuth, isSocialProvider, SOCIAL_PROVIDER_ORIGINS } from "#lib/server/auth-api.js";
 import { getSiteOrigin } from "#lib/server/site-url.js";
 import type { Actions, PageServerLoad } from "./$types";
 
@@ -42,7 +42,7 @@ export const actions: Actions = {
 	social: async ({ request, fetch, cookies, url }) => {
 		const provider = String((await request.formData()).get("provider") ?? "");
 
-		if (provider !== "google" && provider !== "github") {
+		if (!isSocialProvider(provider)) {
 			return fail(400, { message: "Unknown sign-in provider." });
 		}
 
@@ -58,8 +58,8 @@ export const actions: Actions = {
 			return fail(400, { message: result.message || "That sign-in provider is unavailable." });
 		}
 
-		// See the matching note in login/+page.server.ts: this leaves the app for
-		// the provider's authorization URL, which SvelteKit 3 makes opt-in.
-		redirect(303, target, { external: true });
+		// Only the chosen provider's origin is allowed; see the matching note in
+		// login/+page.server.ts.
+		redirect(303, target, { external: [SOCIAL_PROVIDER_ORIGINS[provider]] });
 	},
 };
