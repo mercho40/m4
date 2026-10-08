@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onMount } from "svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import { page } from "$app/state";
 	import { resolve } from "$app/paths";
@@ -13,6 +14,18 @@
 
 	let { label, busy = $bindable(false), onerror }: Props = $props();
 
+	// A failed OAuth sign-in comes back to `errorCallbackURL` as `?error=<code>`.
+	// Read on mount: these pages are prerendered, where query parameters do not
+	// exist yet.
+	const OAUTH_ERRORS: Record<string, string> = {
+		account_not_linked: "An account with that email already exists. Sign in with your password.",
+	};
+
+	onMount(() => {
+		const code = page.url.searchParams.get("error");
+		if (code) onerror(OAUTH_ERRORS[code] ?? `Sign-in with that provider failed (${code}).`);
+	});
+
 	async function signIn(provider: "google" | "github") {
 		busy = true;
 		try {
@@ -23,6 +36,8 @@
 				// `trustedOrigins`, which the page's own origin need not be (a
 				// *.vercel.app deployment URL, say).
 				callbackURL: new URL(resolve("/(protected)/account"), page.data.siteUrl).href,
+				// Back to this page rather than the API's bare error page.
+				errorCallbackURL: new URL(page.url.pathname, page.data.siteUrl).href,
 			});
 			// On success the client has already sent the browser to the provider.
 			if (!error) return;
