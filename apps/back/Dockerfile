@@ -17,7 +17,9 @@ COPY package.json bun.lock ./
 COPY apps/back/package.json apps/back/
 COPY apps/web/package.json apps/web/
 
-RUN bun install --frozen-lockfile
+# Only this app's runtime dependencies: `bun build` bundles from them alone, so
+# the web app's toolchain and drizzle-kit/pg/typescript are dead weight here.
+RUN bun install --frozen-lockfile --production --filter @repo/back
 
 COPY apps/back/ apps/back/
 
