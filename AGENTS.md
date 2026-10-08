@@ -62,7 +62,7 @@ The API's CORS config (`origin: WEB_URL`, `credentials: true`) is what lets thes
 
 Drizzle ORM with PostgreSQL. Schema in `apps/back/src/db/schema.ts`. Four tables: `user`, `session`, `account`, `verification` — the Better Auth core set. No plugins are enabled beyond the defaults.
 
-`account.issuer` is **nullable and unindexed**, and that is deliberate. Better Auth 1.7.0-1.7.2 required the column and keyed account identity on `(issuer, account_id)`; 1.7.3 withdrew the requirement and no longer writes it, so a `NOT NULL` there rejects every insert and sign-up returns 500. Migration `0002` relaxes it per the upstream 1.7 upgrade guide — index dropped first, then `NOT NULL` — keeping the column so existing rows survive and a rollback stays possible. Do not re-add the constraint.
+`account.issuer` is **nullable and unindexed**, and that is deliberate. Better Auth 1.7.0-1.7.2 required the column and keyed account identity on `(issuer, account_id)`; 1.7.3 withdrew the requirement and no longer writes it, so a `NOT NULL` there rejects every insert and sign-up returns 500. Migration `0002` relaxes it per the upstream 1.7 upgrade guide — index dropped first, then `NOT NULL` — keeping the column so existing rows survive and a rollback stays possible. Do not re-add the constraint. Migration `0003` (generated, not hand-edited) indexes `account(provider_id, account_id)`, which is how social sign-in looks an account up.
 
 Migrations live in `apps/back/migrations`. `meta/` (`_journal.json` plus one
 snapshot per migration) is committed and required: `drizzle-kit migrate` reads

@@ -59,7 +59,13 @@ export const account = pgTable(
       .$onUpdate(() => /* @__PURE__ */ new Date())
       .notNull(),
   },
-  (table) => [index("account_userId_idx").on(table.userId)],
+  (table) => [
+    index("account_userId_idx").on(table.userId),
+    // Social sign-in looks an account up by provider and the provider's user
+    // id; without this every OAuth callback scans the table. Not unique, as
+    // Better Auth's own schema does not declare it so.
+    index("account_providerId_accountId_idx").on(table.providerId, table.accountId),
+  ],
 );
 
 export const verification = pgTable(
