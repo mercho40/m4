@@ -4,26 +4,33 @@
 	import { Input } from "#lib/components/ui/input/index.js";
 	import * as Field from "#lib/components/ui/field/index.js";
 	import SocialButtons from "#lib/components/social-buttons.svelte";
-	import { enhance, type SubmitFunction } from "$app/forms";
+	import { authClient } from "#lib/auth-client.js";
+	import { goto } from "$app/navigation";
 	import { resolve } from "$app/paths";
-
-	// `form` is the action's return value, threaded down from +page.svelte.
-	let { form }: { form?: { email?: string; message?: string } | null } = $props();
 
 	const id = $props.id();
 	let submitting = $state(false);
+	let message = $state("");
 
-	// `use:enhance` is SvelteKit's own API for progressive enhancement — the one
-	// place `use:` is still correct in Svelte 5. Without JavaScript the form
-	// still posts natively; this only removes the full-page reload.
-	const enhanceSubmit: SubmitFunction = () => {
+	async function onsubmit(event: SubmitEvent & { currentTarget: HTMLFormElement }) {
+		event.preventDefault();
+		const data = new FormData(event.currentTarget);
 		submitting = true;
-		return async ({ update }) => {
-			submitting = false;
-			// Keep what the user typed on a failed attempt.
-			await update({ reset: false });
-		};
-	};
+		message = "";
+
+		try {
+			const { error } = await authClient.signIn.email({
+				email: String(data.get("email")).trim(),
+				password: String(data.get("password")),
+			});
+			// The API has set the session cookie; rerun the loads so they see it.
+			if (!error) return await goto(resolve("/"), { refreshAll: true });
+			message = error.message || "That email and password combination is not correct.";
+		} catch {
+			message = "Could not reach the server. Try again.";
+		}
+		submitting = false;
+	}
 </script>
 
 <Card.Root class="mx-auto w-full max-w-sm">
@@ -32,12 +39,15 @@
 		<Card.Description>Enter your email below to log in to your account</Card.Description>
 	</Card.Header>
 	<Card.Content>
+		<!--
+			`method="POST"` only matters before hydration: a submit then posts to this
+			page instead of falling back to GET, which would put the password in the URL.
+		-->
 		<form
 			method="POST"
-			action="?/login"
-			use:enhance={enhanceSubmit}
+			{onsubmit}
 			aria-busy={submitting}
-			aria-describedby={form?.message ? `login-error-${id}` : undefined}
+			aria-describedby={message ? `login-error-${id}` : undefined}
 		>
 			<Field.Group>
 				<Field.Field>
@@ -49,9 +59,8 @@
 						autocomplete="username"
 						placeholder="m@example.com"
 						required
-						value={form?.email ?? ""}
-						aria-invalid={form?.message ? "true" : undefined}
-						aria-describedby={form?.message ? `login-error-${id}` : undefined}
+						aria-invalid={message ? "true" : undefined}
+						aria-describedby={message ? `login-error-${id}` : undefined}
 					/>
 				</Field.Field>
 				<Field.Field>
@@ -62,18 +71,18 @@
 						type="password"
 						autocomplete="current-password"
 						required
-						aria-invalid={form?.message ? "true" : undefined}
-						aria-describedby={form?.message ? `login-error-${id}` : undefined}
+						aria-invalid={message ? "true" : undefined}
+						aria-describedby={message ? `login-error-${id}` : undefined}
 					/>
 				</Field.Field>
-				{#if form?.message}
-					<Field.Error id="login-error-{id}">{form.message}</Field.Error>
+				{#if message}
+					<Field.Error id="login-error-{id}">{message}</Field.Error>
 				{/if}
 				<Field.Field>
 					<Button type="submit" class="w-full" disabled={submitting}>
 						{submitting ? "Logging in..." : "Login"}
 					</Button>
-					<SocialButtons label="Login with" disabled={submitting} />
+					<SocialButtons label="Login with" bind:busy={submitting} onerror={(text: string) => (message = text)} />
 					<Field.Description class="text-center">
 						Don't have an account? <a href={resolve("/signup")} class="underline">Sign up</a>
 					</Field.Description>

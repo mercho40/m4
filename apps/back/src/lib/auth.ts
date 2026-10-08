@@ -37,6 +37,14 @@ export const auth = betterAuth({
       : {}),
   },
   trustedOrigins: [WEB_URL],
+  rateLimit: {
+    customRules: {
+      // The web app's server revalidates every visitor's session here when its
+      // cookie cache lapses, so per-IP limits would pool all of them under the
+      // server's address. A lookup needs a valid signed session token anyway.
+      "/get-session": false,
+    },
+  },
   advanced: {
     // Joined session reads — one query instead of two on getSession.
     // Lives under advanced.database; `experimental` is stored but never read.

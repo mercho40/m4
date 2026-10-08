@@ -2,11 +2,10 @@ import { Elysia } from "elysia";
 import { auth } from "#back/lib/auth.js";
 import { cors } from "@elysiajs/cors";
 import { WEB_URL } from "#back/lib/env.js";
-import { applyClientIp } from "#back/lib/client-ip.js";
 
 // user middleware (compute user and session and pass to routes)
 const betterAuth = new Elysia({ name: "better-auth" })
-  .mount(async (request) => auth.handler(await applyClientIp(request)))
+  .mount(auth.handler)
   .macro({
     auth: {
       async resolve({ status, request: { headers } }) {
@@ -25,7 +24,7 @@ const betterAuth = new Elysia({ name: "better-auth" })
   });
 
 const app = new Elysia()
-  .use(betterAuth)
+  // The browser calls the Better Auth routes directly, with its cookies.
   .use(
     cors({
       origin: WEB_URL,
@@ -38,10 +37,11 @@ const app = new Elysia()
       exposeHeaders: [],
     }),
   )
+  .use(betterAuth)
   .get("/health", () => ({ status: "ok", timestamp: Date.now() }))
   .listen(process.env.PORT ?? 3000);
 
 console.log(
   `🦊 Elysia is running at ${app.server?.hostname}:${app.server?.port}`,
 );
-export type App = typeof app 
+export type App = typeof app;

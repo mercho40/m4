@@ -4,24 +4,42 @@
 	import * as Field from "#lib/components/ui/field/index.js";
 	import { Input } from "#lib/components/ui/input/index.js";
 	import SocialButtons from "#lib/components/social-buttons.svelte";
-	import { enhance, type SubmitFunction } from "$app/forms";
+	import { authClient } from "#lib/auth-client.js";
+	import { goto } from "$app/navigation";
 	import { resolve } from "$app/paths";
-
-	// `form` is the action's return value, threaded down from +page.svelte.
-	let { form }: { form?: { name?: string; email?: string; message?: string } | null } = $props();
 
 	// Per-instance ids: hardcoded ones collide with any other form on the page
 	// (login-form renders its own email/password fields) and mis-target labels.
 	const id = $props.id();
 	let submitting = $state(false);
+	let message = $state("");
 
-	const enhanceSubmit: SubmitFunction = () => {
+	async function onsubmit(event: SubmitEvent & { currentTarget: HTMLFormElement }) {
+		event.preventDefault();
+		const data = new FormData(event.currentTarget);
+
+		if (data.get("password") !== data.get("confirmPassword")) {
+			message = "Those passwords do not match.";
+			return;
+		}
+
 		submitting = true;
-		return async ({ update }) => {
-			submitting = false;
-			await update({ reset: false });
-		};
-	};
+		message = "";
+
+		try {
+			const { error } = await authClient.signUp.email({
+				name: String(data.get("name")).trim(),
+				email: String(data.get("email")).trim(),
+				password: String(data.get("password")),
+			});
+			// Sign-up also signs in; rerun the loads so they see the new session.
+			if (!error) return await goto(resolve("/"), { refreshAll: true });
+			message = error.message || "That account could not be created.";
+		} catch {
+			message = "Could not reach the server. Try again.";
+		}
+		submitting = false;
+	}
 </script>
 
 <Card.Root class="mx-auto w-full max-w-sm">
@@ -30,12 +48,15 @@
 		<Card.Description>Enter your information below to create your account</Card.Description>
 	</Card.Header>
 	<Card.Content>
+		<!--
+			`method="POST"` only matters before hydration: a submit then posts to this
+			page instead of falling back to GET, which would put the password in the URL.
+		-->
 		<form
 			method="POST"
-			action="?/signup"
-			use:enhance={enhanceSubmit}
+			{onsubmit}
 			aria-busy={submitting}
-			aria-describedby={form?.message ? `signup-error-${id}` : undefined}
+			aria-describedby={message ? `signup-error-${id}` : undefined}
 		>
 			<Field.Group>
 				<Field.Field>
@@ -47,9 +68,8 @@
 						autocomplete="name"
 						placeholder="John Doe"
 						required
-						value={form?.name ?? ""}
-						aria-invalid={form?.message ? "true" : undefined}
-						aria-describedby={form?.message ? `signup-error-${id}` : undefined}
+						aria-invalid={message ? "true" : undefined}
+						aria-describedby={message ? `signup-error-${id}` : undefined}
 					/>
 				</Field.Field>
 				<Field.Field>
@@ -61,9 +81,8 @@
 						autocomplete="username"
 						placeholder="m@example.com"
 						required
-						value={form?.email ?? ""}
-						aria-invalid={form?.message ? "true" : undefined}
-						aria-describedby={form?.message ? `signup-error-${id}` : undefined}
+						aria-invalid={message ? "true" : undefined}
+						aria-describedby={message ? `signup-error-${id}` : undefined}
 					/>
 				</Field.Field>
 				<Field.Field>
@@ -75,8 +94,8 @@
 						autocomplete="new-password"
 						minlength={8}
 						required
-						aria-invalid={form?.message ? "true" : undefined}
-						aria-describedby={form?.message
+						aria-invalid={message ? "true" : undefined}
+						aria-describedby={message
 							? `password-description-${id} signup-error-${id}`
 							: `password-description-${id}`}
 					/>
@@ -91,19 +110,19 @@
 						autocomplete="new-password"
 						minlength={8}
 						required
-						aria-invalid={form?.message ? "true" : undefined}
-						aria-describedby={form?.message ? `signup-error-${id}` : undefined}
+						aria-invalid={message ? "true" : undefined}
+						aria-describedby={message ? `signup-error-${id}` : undefined}
 					/>
 				</Field.Field>
-				{#if form?.message}
-					<Field.Error id="signup-error-{id}">{form.message}</Field.Error>
+				{#if message}
+					<Field.Error id="signup-error-{id}">{message}</Field.Error>
 				{/if}
 				<Field.Group>
 					<Field.Field>
 						<Button type="submit" class="w-full" disabled={submitting}>
 							{submitting ? "Creating account..." : "Create Account"}
 						</Button>
-						<SocialButtons label="Sign up with" disabled={submitting} />
+						<SocialButtons label="Sign up with" bind:busy={submitting} onerror={(text: string) => (message = text)} />
 						<Field.Description class="px-6 text-center">
 							Already have an account? <a href={resolve("/login")} class="underline">Sign in</a>
 						</Field.Description>

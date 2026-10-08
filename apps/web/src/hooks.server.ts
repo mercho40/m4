@@ -1,7 +1,7 @@
 import { redirect } from "@sveltejs/kit";
 import type { Handle, HandleFetch, HandleServerError } from "@sveltejs/kit/hooks";
 import { getCookieCache } from "better-auth/cookies";
-import { getSession } from "#lib/server/auth-api.js";
+import { getSession } from "#lib/server/session.js";
 import { PUBLIC_API_URL } from "$app/env/public";
 import { BETTER_AUTH_SECRET } from "$app/env/private";
 

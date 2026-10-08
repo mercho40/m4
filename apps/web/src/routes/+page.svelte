@@ -1,8 +1,17 @@
 <script lang="ts">
+	import { refreshAll } from "$app/navigation";
 	import { resolve } from "$app/paths";
+	import { authClient } from "#lib/auth-client.js";
 	import { Button } from "#lib/components/ui/button/index.js";
 
 	let { data } = $props();
+
+	// When the provider supports RP-initiated logout, the client sends the
+	// browser to its logout page instead; the refresh is then moot.
+	async function signOut() {
+		const { error } = await authClient.signOut();
+		if (!error) await refreshAll();
+	}
 
 	// One source of truth: this string is the meta description, the JSON-LD
 	// description and the visible copy, so structured data cannot drift from
@@ -56,9 +65,9 @@
 	</div>
 
 	{#if data.user}
-		<form method="POST" action={resolve("/logout")}>
-			<Button type="submit" variant="outline">Sign out</Button>
-		</form>
+		<div>
+			<Button variant="outline" onclick={signOut}>Sign out</Button>
+		</div>
 	{:else}
 		<!--
 			The bordered panel is lakebed.dev's device: a mono label on the left, the
