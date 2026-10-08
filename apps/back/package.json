@@ -1,6 +1,6 @@
 {
   "name": "@repo/back",
-  "version": "1.0.50",
+  "private": true,
   "type": "module",
   "imports": {
     "#back/*": "./src/*"
@@ -9,14 +9,13 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
     "build": "bun build --compile --minify --target bun --outfile server src/index.ts",
     "dev": "bun run --watch src/index.ts",
     "start": "NODE_ENV=production ./server",
-    "db:generate": "bunx drizzle-kit generate",
-    "db:migrate": "bunx drizzle-kit migrate",
-    "db:studio": "bunx drizzle-kit studio",
-    "check-types": "./node_modules/@typescript/native/bin/tsc --noEmit"
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:studio": "drizzle-kit studio",
+    "check-types": "tsc --noEmit"
   },
   "dependencies": {
     "@elysiajs/cors": "^1.4.2",
@@ -25,8 +24,6 @@
     "elysia": "^1.4.30"
   },
   "devDependencies": {
-    "@types/pg": "^8.23.1",
-    "@typescript/native": "npm:typescript@7",
     "bun-types": "^1.4.2",
     "drizzle-kit": "^0.31.11",
     "pg": "^8.23.1",

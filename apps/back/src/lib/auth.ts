@@ -10,9 +10,6 @@ export const auth = betterAuth({
     // sign-up can leave an orphaned user row behind.
     transaction: true,
   }),
-  // Telemetry is opt-in in Better Auth (default off); kept explicit as
-  // belt-and-braces. Note it does not override BETTER_AUTH_TELEMETRY=1.
-  telemetry: { enabled: false },
   emailAndPassword: {
     enabled: true,
   },

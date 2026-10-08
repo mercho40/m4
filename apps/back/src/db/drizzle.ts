@@ -1,5 +1,4 @@
-import { drizzle } from 'drizzle-orm/bun-sql';
-// import { drizzle } from 'drizzle-orm/node-postgres';
+import { drizzle } from "drizzle-orm/bun-sql";
 import * as schema from "#back/db/schema.js";
 import { DATABASE_URL } from "#back/lib/env.js";
 

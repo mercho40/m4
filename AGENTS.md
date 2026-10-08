@@ -42,6 +42,8 @@ When calling a protected endpoint from a server load, forward the cookie:
 
 `apps/web` depends on `@repo/back` (`workspace:*`) so Turborepo can see the edge and invalidate the web type-check when the backend contract changes.
 
+**Both apps must resolve the same `elysia` copy**, or `treaty<App>` fails with "does not satisfy the constraint 'Elysia<…>'". Bun's isolated installer gives a package a separate copy for each distinct set of resolved peers, and `elysia` has `typescript` and `@types/bun` as optional peers. So both apps declare the same `typescript` (`~6.0.3`), and `apps/back` uses `bun-types` rather than `@types/bun`, which the web app does not have. Confirm with `readlink apps/*/node_modules/elysia` after changing either app's dev dependencies. The web app's extra `@typescript/native` (TypeScript 7 under an alias) is what `svelte-check --tsgo` requires, and it is not a peer of anything.
+
 ### Authentication Flow
 
 **Server-side (every request):** `hooks.server.ts` reads the session from Better Auth's cookie cache via `getCookieCache()` — no API call to the backend. Populates `event.locals.user` (only; there is no `locals.session`). When the 5-minute cache lapses but a session token is still present, it revalidates via `authClient.getSession()` and relays the refreshed `Set-Cookie`. Requires `BETTER_AUTH_SECRET` in the web app's env (must match the backend's secret).
