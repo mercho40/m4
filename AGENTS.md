@@ -119,7 +119,10 @@ with no schema must be set but may be empty, so `PUBLIC_API_URL` and
 **`apps/web` → Vercel.** Uses `@sveltejs/adapter-vercel`. Set the Vercel project's
 Node version to **24**: adapter-vercel 7 only accepts 22 or 24, and
 `vite.config.ts` pins `runtime: "nodejs24.x"` because this machine's Node (26)
-is outside the set the adapter can infer from. Environment: `PUBLIC_API_URL`
+is outside the set the adapter can infer from. The function runs in `gru1` (São Paulo,
+AWS sa-east-1), set by `regions` in the same adapter call, next to the API and
+its database. Vercel installs with its own Bun (1.3.x at the time of writing),
+not the version `packageManager` pins. Environment: `PUBLIC_API_URL`
 (the API origin) and `PUBLIC_SITE_URL` (the public site URL), both needed at
 build time, and `BETTER_AUTH_SECRET` (must match the backend's), needed at
 runtime.

@@ -16,7 +16,11 @@ export default defineConfig({
 			// is the project's Node setting, but this machine runs Node 26, so
 			// `bun run build` fails locally without the pin. Keep the Vercel project
 			// on Node 24 so the two agree.
-			adapter: adapter({ runtime: "nodejs24.x" }),
+			//
+			// `gru1` is São Paulo (AWS sa-east-1), next to the API and its database:
+			// server-side calls to the API, such as session revalidation, would
+			// otherwise make a round trip from Vercel's default, iad1.
+			adapter: adapter({ runtime: "nodejs24.x", regions: ["gru1"] }),
 			compilerOptions: {
 				// Force runes mode for the project, except for libraries.
 				runes: ({ filename }) => (filename.split(/[/\\]/).includes("node_modules") ? undefined : true),
