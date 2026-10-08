@@ -12,6 +12,3 @@ server
 
 # Logs
 *.log
-
-# Drizzle
-meta/

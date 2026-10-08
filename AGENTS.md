@@ -60,6 +60,15 @@ Drizzle ORM with PostgreSQL. Schema in `apps/back/src/db/schema.ts`. Four tables
 
 `account.issuer` is **nullable and unindexed**, and that is deliberate. Better Auth 1.7.0-1.7.2 required the column and keyed account identity on `(issuer, account_id)`; 1.7.3 withdrew the requirement and no longer writes it, so a `NOT NULL` there rejects every insert and sign-up returns 500. Migration `0002` relaxes it per the upstream 1.7 upgrade guide — index dropped first, then `NOT NULL` — keeping the column so existing rows survive and a rollback stays possible. Do not re-add the constraint.
 
+Migrations live in `apps/back/migrations`. `meta/` (`_journal.json` plus one
+snapshot per migration) is committed and required: `drizzle-kit migrate` reads
+the journal to know what to apply, and `drizzle-kit generate` diffs the schema
+against the latest snapshot. Without it, `migrate` exits 1 without printing why
+(the real error is `Can't find meta/_journal.json file`), and `generate` emits a
+duplicate `0000` that recreates every table. `0001` and `0002` are hand-edited
+after generation, so never regenerate them; edit the SQL only, and only before
+it has been applied anywhere, because the migrator records each file by hash.
+
 ### UI Components
 
 Library code is imported through the `#lib/*` subpath import declared in

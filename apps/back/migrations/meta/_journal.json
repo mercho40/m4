@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1780863467000,
+      "tag": "0000_sudden_stardust",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1787311496000,
+      "tag": "0001_add_account_issuer",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1788977299000,
+      "tag": "0002_relax_account_issuer",
+      "breakpoints": true
+    }
+  ]
+}
