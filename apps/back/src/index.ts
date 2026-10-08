@@ -2,10 +2,11 @@ import { Elysia } from "elysia";
 import { auth } from "#back/lib/auth.js";
 import { cors } from "@elysiajs/cors";
 import { WEB_URL } from "#back/lib/env.js";
+import { applyClientIp } from "#back/lib/client-ip.js";
 
 // user middleware (compute user and session and pass to routes)
 const betterAuth = new Elysia({ name: "better-auth" })
-  .mount(auth.handler)
+  .mount(async (request) => auth.handler(await applyClientIp(request)))
   .macro({
     auth: {
       async resolve({ status, request: { headers } }) {

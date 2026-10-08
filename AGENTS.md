@@ -54,6 +54,8 @@ When calling a protected endpoint from a server load, forward the cookie:
 
 Both pages also redirect an already-authenticated visitor with `redirect(303, "/")`, mirroring the `(protected)` guard in the opposite direction.
 
+**Client IP forwarding.** Because these calls come from the web server, Better Auth would otherwise rate-limit every user as Vercel's one egress IP (3 sign-ins per 10s, site-wide) and record the server's IP and user agent on sessions. Forwarding `X-Forwarded-For` cannot help: Haloy's proxy (Go's `ReverseProxy` with `SetXForwarded`) discards any inbound value and sets the TCP peer. So every server-side call to the API (`callAuth`, the session revalidation in `handle`, sign-out) spreads `clientHeaders(event)` from `#lib/server/client-ip.ts`: the browser's user agent plus `x-m4-client-ip` and an HMAC-SHA256 of it keyed by `BETTER_AUTH_SECRET`. The backend's mount wrapper (`applyClientIp` in `src/lib/client-ip.ts`) checks the signature, moves a valid IP into `X-Forwarded-For` for Better Auth, and always strips the custom headers, so a forged pair falls back to Haloy's peer address.
+
 ### Database
 
 Drizzle ORM with PostgreSQL. Schema in `apps/back/src/db/schema.ts`. Four tables: `user`, `session`, `account`, `verification` — the Better Auth core set. No plugins are enabled beyond the defaults.
@@ -89,7 +91,7 @@ existed to patch up. Use `.js` in these specifiers even though the files are
 
 **`apps/back/.env`:** `DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `WEB_URL`, `COOKIE_DOMAIN` (production only), `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
 
-`DATABASE_URL`, `BETTER_AUTH_URL` and `WEB_URL` are validated at import time in `src/lib/env.ts` and throw when missing — a non-null assertion only silences the type checker, and a missing `WEB_URL` would otherwise widen CORS to `*`. Social providers register only when both of their credentials are present. Runtime vars are listed in `turbo.json` under `passThroughEnv`, since Turborepo 2.x runs tasks in strict env mode.
+`DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` and `WEB_URL` are validated at import time in `src/lib/env.ts` and throw when missing — a non-null assertion only silences the type checker, and a missing `WEB_URL` would otherwise widen CORS to `*`. Social providers register only when both of their credentials are present. Runtime vars are listed in `turbo.json` under `passThroughEnv`, since Turborepo 2.x runs tasks in strict env mode.
 
 **`apps/web/.env`:** `PUBLIC_API_URL`, `PUBLIC_SITE_URL`, `BETTER_AUTH_SECRET` (must match backend)
 

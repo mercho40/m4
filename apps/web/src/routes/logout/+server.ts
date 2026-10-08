@@ -1,12 +1,15 @@
 import { resolve } from "$app/paths";
 import { PUBLIC_API_URL } from "$app/env/public";
+import { clientHeaders } from "#lib/server/client-ip.js";
 import { getSiteOrigin } from "#lib/server/site-url.js";
 import type { RequestHandler } from "./$types";
 
-export const POST: RequestHandler = async ({ fetch, request, url }) => {
+export const POST: RequestHandler = async (event) => {
+	const { fetch, request, url } = event;
 	const response = await fetch(`${PUBLIC_API_URL.replace(/\/$/, "")}/api/auth/sign-out`, {
 		method: "POST",
 		headers: {
+			...(await clientHeaders(event)),
 			accept: "application/json",
 			"content-type": "application/json",
 			// The session cookie is attached by handleFetch, which covers every

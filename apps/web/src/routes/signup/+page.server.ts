@@ -1,7 +1,7 @@
 import { fail, redirect } from "@sveltejs/kit";
 import { callAuth, isSocialProvider, SOCIAL_PROVIDER_ORIGINS } from "#lib/server/auth-api.js";
 import { resolve } from "$app/paths";
-import { getSiteOrigin, siteUrl } from "#lib/server/site-url.js";
+import { siteUrl } from "#lib/server/site-url.js";
 import type { Actions, PageServerLoad } from "./$types";
 
 // Mirror image of the (protected) guard: the server already knows who this is,
@@ -11,7 +11,8 @@ export const load: PageServerLoad = ({ locals }) => {
 };
 
 export const actions: Actions = {
-	signup: async ({ request, fetch, cookies, url }) => {
+	signup: async (event) => {
+		const { request } = event;
 		const data = await request.formData();
 		const name = String(data.get("name") ?? "").trim();
 		const email = String(data.get("email") ?? "").trim();
@@ -27,7 +28,7 @@ export const actions: Actions = {
 			return fail(400, { name, email, message: "Those passwords do not match." });
 		}
 
-		const result = await callAuth("sign-up/email", { email, password, name }, { fetch, cookies, origin: getSiteOrigin(url) });
+		const result = await callAuth("sign-up/email", { email, password, name }, event);
 
 		if (!result.ok) {
 			return fail(result.status === 401 ? 400 : result.status, {
@@ -40,7 +41,8 @@ export const actions: Actions = {
 		redirect(303, "/");
 	},
 
-	social: async ({ request, fetch, cookies, url }) => {
+	social: async (event) => {
+		const { request, url } = event;
 		const provider = String((await request.formData()).get("provider") ?? "");
 
 		if (!isSocialProvider(provider)) {
@@ -49,11 +51,11 @@ export const actions: Actions = {
 
 		const result = await callAuth(
 			"sign-in/social",
-			// The canonical origin, like the Origin header below: Better Auth
+			// The canonical origin, like the Origin header callAuth sends: Better Auth
 			// rejects a callbackURL outside `trustedOrigins`, which the request's
 			// own origin need not be (a *.vercel.app deployment URL, say).
 			{ provider, callbackURL: siteUrl(url, resolve("/")).href },
-			{ fetch, cookies, origin: getSiteOrigin(url) },
+			event,
 		);
 
 		const target = typeof result.data?.url === "string" ? result.data.url : null;

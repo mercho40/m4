@@ -11,6 +11,7 @@ function required(name: string): string {
 }
 
 export const DATABASE_URL = required("DATABASE_URL");
+export const BETTER_AUTH_SECRET = required("BETTER_AUTH_SECRET");
 export const BETTER_AUTH_URL = required("BETTER_AUTH_URL");
 export const WEB_URL = required("WEB_URL");
 

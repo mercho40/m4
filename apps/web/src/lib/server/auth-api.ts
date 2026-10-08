@@ -1,6 +1,8 @@
 import { parseSetCookieHeader } from "better-auth/cookies";
 import { PUBLIC_API_URL } from "$app/env/public";
-import type { Cookies } from "@sveltejs/kit";
+import type { Cookies, RequestEvent } from "@sveltejs/kit";
+import { clientHeaders } from "#lib/server/client-ip.js";
+import { getSiteOrigin } from "#lib/server/site-url.js";
 
 const API_BASE = PUBLIC_API_URL.replace(/\/$/, "");
 
@@ -56,26 +58,22 @@ export function relayCookies(response: Response, cookies: Cookies) {
 /**
  * POST to a Better Auth endpoint from the server, relaying any session cookies.
  *
- * `fetch` must be the request-scoped `event.fetch` so `handleFetch` can attach
- * the incoming cookie for calls that need an existing session. `origin` must be
- * an entry in the backend's `trustedOrigins`.
+ * Goes through `event.fetch` so `handleFetch` can attach the incoming cookie
+ * for calls that need an existing session.
  */
-export async function callAuth(
-	path: string,
-	body: unknown,
-	{ fetch, cookies, origin }: { fetch: typeof globalThis.fetch; cookies: Cookies; origin: string },
-): Promise<AuthResponse> {
+export async function callAuth(path: string, body: unknown, event: RequestEvent): Promise<AuthResponse> {
 	let response: Response;
 	try {
-		response = await fetch(`${API_BASE}/api/auth/${path}`, {
+		response = await event.fetch(`${API_BASE}/api/auth/${path}`, {
 			method: "POST",
 			// Better Auth checks Origin against `trustedOrigins` and answers 403
 			// "Invalid origin" without it — server-to-server calls carry no browser
 			// Origin, so it has to be set explicitly to the app's public origin.
 			headers: {
+				...(await clientHeaders(event)),
 				"content-type": "application/json",
 				accept: "application/json",
-				origin,
+				origin: getSiteOrigin(event.url),
 			},
 			body: JSON.stringify(body),
 		});
@@ -84,7 +82,7 @@ export async function callAuth(
 		return { ok: false, status: 503, message: "Could not reach the server. Try again.", data: null };
 	}
 
-	relayCookies(response, cookies);
+	relayCookies(response, event.cookies);
 
 	const data = (await response.json().catch(() => null)) as Record<string, unknown> | null;
 

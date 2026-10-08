@@ -1,7 +1,7 @@
 import { fail, redirect } from "@sveltejs/kit";
 import { callAuth, isSocialProvider, SOCIAL_PROVIDER_ORIGINS } from "#lib/server/auth-api.js";
 import { resolve } from "$app/paths";
-import { getSiteOrigin, siteUrl } from "#lib/server/site-url.js";
+import { siteUrl } from "#lib/server/site-url.js";
 import type { Actions, PageServerLoad } from "./$types";
 
 // Mirror image of the (protected) guard: the server already knows who this is,
@@ -12,7 +12,8 @@ export const load: PageServerLoad = ({ locals }) => {
 
 export const actions: Actions = {
 	// Named rather than default so the social action can live alongside it.
-	login: async ({ request, fetch, cookies, url }) => {
+	login: async (event) => {
+		const { request } = event;
 		const data = await request.formData();
 		const email = String(data.get("email") ?? "").trim();
 		const password = String(data.get("password") ?? "");
@@ -21,7 +22,7 @@ export const actions: Actions = {
 			return fail(400, { email, message: "Enter your email and password." });
 		}
 
-		const result = await callAuth("sign-in/email", { email, password }, { fetch, cookies, origin: getSiteOrigin(url) });
+		const result = await callAuth("sign-in/email", { email, password }, event);
 
 		if (!result.ok) {
 			// Never echo the password back — only the email, so the field can be refilled.
@@ -34,7 +35,8 @@ export const actions: Actions = {
 		redirect(303, "/");
 	},
 
-	social: async ({ request, fetch, cookies, url }) => {
+	social: async (event) => {
+		const { request, url } = event;
 		const provider = String((await request.formData()).get("provider") ?? "");
 
 		if (!isSocialProvider(provider)) {
@@ -43,11 +45,11 @@ export const actions: Actions = {
 
 		const result = await callAuth(
 			"sign-in/social",
-			// The canonical origin, like the Origin header below: Better Auth
+			// The canonical origin, like the Origin header callAuth sends: Better Auth
 			// rejects a callbackURL outside `trustedOrigins`, which the request's
 			// own origin need not be (a *.vercel.app deployment URL, say).
 			{ provider, callbackURL: siteUrl(url, resolve("/")).href },
-			{ fetch, cookies, origin: getSiteOrigin(url) },
+			event,
 		);
 
 		const target = typeof result.data?.url === "string" ? result.data.url : null;

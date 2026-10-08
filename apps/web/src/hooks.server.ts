@@ -3,6 +3,7 @@ import type { Handle, HandleFetch, HandleServerError } from "@sveltejs/kit/hooks
 import { getCookieCache } from "better-auth/cookies";
 import { authClient } from "#lib/auth-client.js";
 import { relayCookies } from "#lib/server/auth-api.js";
+import { clientHeaders } from "#lib/server/client-ip.js";
 import { PUBLIC_API_URL } from "$app/env/public";
 import { BETTER_AUTH_SECRET } from "$app/env/private";
 
@@ -32,7 +33,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 		try {
 			const { data } = await authClient.getSession({
 				fetchOptions: {
-					headers: { cookie: cookieHeader },
+					headers: { ...(await clientHeaders(event)), cookie: cookieHeader },
 					onResponse(context) {
 						relayCookies(context.response, event.cookies);
 					},
