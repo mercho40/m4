@@ -45,7 +45,8 @@ const app = new Elysia()
   )
   .use(betterAuth)
   .get("/health", () => ({ status: "ok", timestamp: Date.now() }))
-  .listen(process.env.PORT ?? 3000);
+  // `||`, not `??`: an empty `PORT=` (as in .env.example) arrives as "".
+  .listen(Number(process.env.PORT) || 3000);
 
 console.log(
   `🦊 Elysia is running at ${app.server?.hostname}:${app.server?.port}`,
