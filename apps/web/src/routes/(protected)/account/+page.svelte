@@ -5,13 +5,25 @@
 
 	let { data } = $props();
 
+	let signingOut = $state(false);
+	let message = $state("");
+
 	// When the provider supports RP-initiated logout, the client sends the
 	// browser to its logout page instead.
 	async function signOut() {
-		// Imported on click, so the page does not load the auth client up front.
-		const { authClient } = await import("#lib/auth-client.js");
-		const { error } = await authClient.signOut();
-		if (!error) await goto(resolve("/"));
+		signingOut = true;
+		message = "";
+
+		try {
+			// Imported on click, so the page does not load the auth client up front.
+			const { authClient } = await import("#lib/auth-client.js");
+			const { error } = await authClient.signOut();
+			if (!error) return await goto(resolve("/"));
+			message = error.message || "Could not sign out. Try again.";
+		} catch {
+			message = "Could not reach the server. Try again.";
+		}
+		signingOut = false;
 	}
 </script>
 
@@ -26,7 +38,12 @@
 		<p class="text-muted-foreground text-lg">{data.user?.email}</p>
 	</div>
 
-	<div>
-		<Button variant="outline" onclick={signOut}>Sign out</Button>
+	<div class="space-y-3">
+		<Button variant="outline" onclick={signOut} disabled={signingOut}>
+			{signingOut ? "Signing out..." : "Sign out"}
+		</Button>
+		{#if message}
+			<p role="alert" class="text-destructive text-sm">{message}</p>
+		{/if}
 	</div>
 </main>
