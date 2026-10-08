@@ -99,9 +99,9 @@ existed to patch up. Use `.js` in these specifiers even though the files are
 
 Each one is declared in `src/env.ts` via `defineEnvVars`, which is what makes it
 importable from `$app/env/public` or `$app/env/private` — SvelteKit 3 no longer
-derives `$env/*` modules from the ambient environment. A declared variable
-with no schema must be set but may be empty, so `PUBLIC_API_URL` and
-`BETTER_AUTH_SECRET` use a validator that also rejects the empty string.
+derives `$env/*` modules from the ambient environment (they are deprecated, and
+removed in SvelteKit 4). The file follows the documented form, with no
+validators of its own.
 
 - `PUBLIC_API_URL` is `static`: inlined at build time, so it must be present
   for `vite build`.
@@ -110,9 +110,9 @@ with no schema must be set but may be empty, so `PUBLIC_API_URL` and
   hit could ship a stale secret after rotation. Do not make it `static`.
   `vite dev` does write its value to `.svelte-kit/generated/dev/`, which is why
   the `build` outputs in `turbo.json` exclude that directory.
-- `PUBLIC_SITE_URL` is dynamic and optional at runtime, but when set it must be
-  an absolute http(s) URL; a value like `example.com` fails at startup instead
-  of 500-ing every request.
+- `PUBLIC_SITE_URL` is dynamic and optional at runtime. It must be an absolute
+  URL such as `https://example.com`: nothing validates it, so a bare
+  `example.com` makes every server-rendered page 500.
 
 `PUBLIC_SITE_URL` is required **at build time**: `robots.txt`, `sitemap.xml` and `llms.txt` are prerendered, and `getSiteOrigin` throws during the build rather than bake SvelteKit's prerender placeholder origin into files crawlers read.
 
