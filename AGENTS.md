@@ -93,7 +93,7 @@ existed to patch up. Use `.js` in these specifiers even though the files are
 
 **`apps/back/.env`:** `DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `WEB_URL`, `COOKIE_DOMAIN` (production only), `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
 
-`DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` and `WEB_URL` are validated at import time in `src/lib/env.ts` and throw when missing — a non-null assertion only silences the type checker, and a missing `WEB_URL` would otherwise widen CORS to `*`. Social providers register only when both of their credentials are present. Runtime vars are listed in `turbo.json` under `passThroughEnv`, since Turborepo 2.x runs tasks in strict env mode.
+`DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` and `WEB_URL` are validated at import time in `src/lib/env.ts` and throw when missing — a non-null assertion only silences the type checker, and a missing `WEB_URL` would otherwise widen CORS to `*`. Social providers register only when both of their credentials are present. Runtime vars are listed once in `turbo.json` under `globalPassThroughEnv`, since Turborepo 2.x runs tasks in strict env mode. `PUBLIC_*` is not listed: Turborepo's framework inference already covers it for the SvelteKit app, and hashes it. `NODE_ENV` is not listed either, so it cannot reach `build` without entering its hash; `start` sets it itself.
 
 **`apps/web/.env`:** `PUBLIC_API_URL`, `PUBLIC_SITE_URL`, `BETTER_AUTH_SECRET` (must match backend)
 

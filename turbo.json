@@ -1,6 +1,18 @@
 {
   "$schema": "https://turborepo.dev/schema.json",
   "ui": "tui",
+  "globalPassThroughEnv": [
+    "DATABASE_URL",
+    "BETTER_AUTH_SECRET",
+    "BETTER_AUTH_URL",
+    "WEB_URL",
+    "COOKIE_DOMAIN",
+    "GITHUB_CLIENT_ID",
+    "GITHUB_CLIENT_SECRET",
+    "GOOGLE_CLIENT_ID",
+    "GOOGLE_CLIENT_SECRET",
+    "PORT"
+  ],
   "tasks": {
     "build": {
       "dependsOn": [
@@ -13,7 +25,6 @@
       "outputs": [
         ".svelte-kit/**",
         ".vercel/output/**",
-        "build/**",
         "server"
       ]
     },
@@ -29,43 +40,13 @@
     },
     "dev": {
       "cache": false,
-      "persistent": true,
-      "passThroughEnv": [
-        "DATABASE_URL",
-        "BETTER_AUTH_SECRET",
-        "BETTER_AUTH_URL",
-        "WEB_URL",
-        "GITHUB_CLIENT_ID",
-        "GITHUB_CLIENT_SECRET",
-        "GOOGLE_CLIENT_ID",
-        "GOOGLE_CLIENT_SECRET",
-        "PUBLIC_API_URL",
-        "PUBLIC_SITE_URL",
-        "PORT",
-        "NODE_ENV",
-        "COOKIE_DOMAIN"
-      ]
+      "persistent": true
     },
     "start": {
       "dependsOn": [
         "build"
       ],
-      "persistent": true,
-      "passThroughEnv": [
-        "DATABASE_URL",
-        "BETTER_AUTH_SECRET",
-        "BETTER_AUTH_URL",
-        "WEB_URL",
-        "GITHUB_CLIENT_ID",
-        "GITHUB_CLIENT_SECRET",
-        "GOOGLE_CLIENT_ID",
-        "GOOGLE_CLIENT_SECRET",
-        "PUBLIC_API_URL",
-        "PUBLIC_SITE_URL",
-        "PORT",
-        "NODE_ENV",
-        "COOKIE_DOMAIN"
-      ]
+      "persistent": true
     }
   }
 }
