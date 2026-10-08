@@ -37,7 +37,12 @@
 	<meta name="twitter:card" content="summary" />
 	<meta name="twitter:title" content="M4 — Full-stack TypeScript starter" />
 	<meta name="twitter:description" content={description} />
-	<script type="application/ld+json">{@html structuredDataJson}</script>
+	<!--
+		Svelte treats a <script> element's content as raw text, so `{@html}` inside
+		one ships literally. The whole element goes through `{@html}` instead; the
+		`<` escaping above keeps the JSON from closing it early.
+	-->
+	{@html `<script type="application/ld+json">${structuredDataJson}</` + `script>`}
 </svelte:head>
 
 <main id="main-content" class="mx-auto flex min-h-svh w-full max-w-2xl flex-col justify-center gap-10 px-6 py-16">
