@@ -1,9 +1,10 @@
 # Build context is the repo root (see apps/back/Dockerfile). Keep it small and,
 # more importantly, keep secrets out of the image.
 
-# Secrets — these must never enter the build context. Bun auto-loads .env from
-# the working directory, so a stray copy would silently override the container
-# environment Haloy injects.
+# Secrets — these must never enter the build context, where they would sit in
+# the build stage's layers. (Bun auto-loads .env from the working directory but
+# only fills variables that are unset, so a stray copy would quietly supply
+# values Haloy did not inject.)
 **/.env
 **/.env.*
 !**/.env.example

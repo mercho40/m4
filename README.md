@@ -6,7 +6,7 @@ Full-stack TypeScript monorepo starter template.
 
 - **Runtime:** Bun
 - **Monorepo:** Turborepo
-- **Frontend:** SvelteKit 5, Tailwind CSS 4, shadcn-svelte
+- **Frontend:** SvelteKit 3 (Svelte 5), Tailwind CSS 4, shadcn-svelte
 - **Backend:** Elysia
 - **Auth:** Better Auth (email/password, Google, GitHub)
 - **Database:** Drizzle ORM, PostgreSQL
@@ -54,7 +54,7 @@ This starts both apps:
 | `bun run dev` | Start all apps in development |
 | `bun run build` | Build all apps |
 | `bun run check-types` | Type check across monorepo |
-| `bun run start` | Start production (requires build) |
+| `bun run start` | Build, then run the API's compiled binary locally (the web app deploys to Vercel) |
 
 ### Backend (apps/back)
 

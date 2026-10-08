@@ -37,8 +37,7 @@ Eden Treaty provides end-to-end type safety between frontend and backend. The ba
 
 `src/lib/api.ts` exports a factory, not a singleton: `createApi(fetch)` returns a Treaty client bound to the fetch you pass, so server loads can hand it `event.fetch`. Nothing imports it yet — `/health` is currently the only route worth calling through Treaty: Better Auth's endpoints sit behind one untyped wildcard route, `.all("/api/auth/*")` in `src/index.ts`. That route, rather than the guide's bare `.mount(auth.handler)`, keeps unknown paths out of Better Auth; the guide's prefixed `.mount("/prefix", …)` would break it, because Elysia strips the prefix while Better Auth builds OAuth callback and email URLs from `BETTER_AUTH_URL` without it.
 
-When calling a protected endpoint from a server load, forward the cookie:
-`createApi(fetch).some.route.get({ headers: { cookie: request.headers.get("cookie") ?? "" } })`.
+Server loads should pass `event.fetch`: `handleFetch` in `hooks.server.ts` attaches the visitor's cookie to every `event.fetch` call to the API origin, which SvelteKit does not do on its own for a sibling subdomain. So `createApi(fetch).some.route.get()` reaches a protected endpoint authenticated, with no headers to forward by hand.
 
 `apps/web` depends on `@repo/back` (`workspace:*`) so Turborepo can see the edge and invalidate the web type-check when the backend contract changes. That edge is for types only: `apps/web/turbo.json` clears the `^build` dependency the root config gives `build`, so building the web app (on Vercel, too) does not compile the backend's binary first. If the web app ever depends on a library package that needs building, list it there.
 
