@@ -24,6 +24,7 @@
       ],
       "outputs": [
         ".svelte-kit/**",
+        "!.svelte-kit/generated/dev/**",
         ".vercel/output/**",
         "server"
       ]
@@ -43,6 +44,7 @@
       "persistent": true
     },
     "start": {
+      "cache": false,
       "dependsOn": [
         "build"
       ],

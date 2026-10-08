@@ -108,6 +108,8 @@ with no schema must be set but may be empty, so `PUBLIC_API_URL` and
 - `BETTER_AUTH_SECRET` is dynamic and only required at runtime, so the secret
   never lands in the build output or in Turborepo's cache of it, where a cache
   hit could ship a stale secret after rotation. Do not make it `static`.
+  `vite dev` does write its value to `.svelte-kit/generated/dev/`, which is why
+  the `build` outputs in `turbo.json` exclude that directory.
 - `PUBLIC_SITE_URL` is dynamic and optional at runtime, but when set it must be
   an absolute http(s) URL; a value like `example.com` fails at startup instead
   of 500-ing every request.
