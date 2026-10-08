@@ -40,7 +40,7 @@ Eden Treaty provides end-to-end type safety between frontend and backend. The ba
 When calling a protected endpoint from a server load, forward the cookie:
 `createApi(fetch).some.route.get({ headers: { cookie: request.headers.get("cookie") ?? "" } })`.
 
-`apps/web` depends on `@repo/back` (`workspace:*`) so Turborepo can see the edge and invalidate the web type-check when the backend contract changes.
+`apps/web` depends on `@repo/back` (`workspace:*`) so Turborepo can see the edge and invalidate the web type-check when the backend contract changes. That edge is for types only: `apps/web/turbo.json` clears the `^build` dependency the root config gives `build`, so building the web app (on Vercel, too) does not compile the backend's binary first. If the web app ever depends on a library package that needs building, list it there.
 
 **Both apps must resolve the same `elysia` copy**, or `treaty<App>` fails with "does not satisfy the constraint 'Elysia<…>'". Bun's isolated installer gives a package a separate copy for each distinct set of resolved peers, and `elysia` has `typescript` and `@types/bun` as optional peers. So both apps declare the same `typescript` (`~6.0.3`), and `apps/back` uses `bun-types` rather than `@types/bun`, which the web app does not have. Confirm with `readlink apps/*/node_modules/elysia` after changing either app's dev dependencies. The web app's extra `@typescript/native` (TypeScript 7 under an alias) is what `svelte-check --tsgo` requires, and it is not a peer of anything.
 
