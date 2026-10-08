@@ -1,5 +1,4 @@
 @import "tailwindcss";
-@import "@fontsource-variable/geist";
 
 /*
  * Single dark theme. There is no light palette and no theme switcher: the
@@ -46,7 +45,6 @@
 }
 
 @theme inline {
-	--font-sans: 'Geist Variable', sans-serif;
 	--color-sidebar-ring: var(--sidebar-ring);
 	--color-sidebar-border: var(--sidebar-border);
 	--color-sidebar-accent-foreground: var(--sidebar-accent-foreground);

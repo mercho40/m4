@@ -15,7 +15,6 @@
     "check-types": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --tsgo"
   },
   "devDependencies": {
-    "@fontsource-variable/geist": "^5.3.0",
     "@lucide/svelte": "^1.52.0",
     "@sveltejs/adapter-vercel": "^7.0.0",
     "@sveltejs/kit": "^3.0.1",
