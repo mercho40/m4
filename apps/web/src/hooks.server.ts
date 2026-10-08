@@ -1,6 +1,8 @@
+import { redirect } from "@sveltejs/kit";
 import type { Handle, HandleFetch, HandleServerError } from "@sveltejs/kit/hooks";
 import { getCookieCache } from "better-auth/cookies";
 import { authClient } from "#lib/auth-client.js";
+import { relayCookies } from "#lib/server/auth-api.js";
 import { PUBLIC_API_URL } from "$app/env/public";
 import { BETTER_AUTH_SECRET } from "$app/env/private";
 
@@ -18,7 +20,6 @@ export const handle: Handle = async ({ event, resolve }) => {
 		secret: BETTER_AUTH_SECRET,
 		isSecure: PUBLIC_API_URL.startsWith("https://"),
 	});
-	let refreshedCookies: string[] = [];
 
 	const cookieHeader = event.request.headers.get("cookie") ?? "";
 	// When the cache lapses, `getCookieCache` returns null — but the user isn't
@@ -28,20 +29,34 @@ export const handle: Handle = async ({ event, resolve }) => {
 	// path resumes instead of bouncing to /login every cache cycle. Skip it when
 	// there's no session token at all (a genuinely logged-out visitor).
 	if (!session && cookieHeader.includes("better-auth.session_token")) {
-		const { data } = await authClient.getSession({
-			fetchOptions: {
-				headers: { cookie: cookieHeader },
-				onResponse(context) {
-					refreshedCookies = context.response.headers.getSetCookie();
+		try {
+			const { data } = await authClient.getSession({
+				fetchOptions: {
+					headers: { cookie: cookieHeader },
+					onResponse(context) {
+						relayCookies(context.response, event.cookies);
+					},
 				},
-			},
-		});
-		session = (data ?? null) as typeof session;
+			});
+			session = (data ?? null) as typeof session;
+		} catch (error) {
+			// better-fetch rethrows network failures. Treat the visitor as signed
+			// out for this request rather than 500 every page, public ones included,
+			// while the API is unreachable.
+			console.error(`[auth] session revalidation failed for ${event.url.pathname}`, error);
+		}
 	}
 
 	event.locals.user = session?.user ?? null;
 
-	const response = await resolve(event, {
+	// The guard lives here rather than in (protected)/+layout.server.ts alone:
+	// a layout load runs concurrently with the page's own load, and never runs
+	// at all for form actions or +server.ts endpoints in the group.
+	if (!event.locals.user && event.route.id?.startsWith("/(protected)")) {
+		redirect(303, "/login");
+	}
+
+	return resolve(event, {
 		// SvelteKit preloads js and css by default but never fonts, "since this
 		// may cause unnecessary files to be downloaded". That caveat does not
 		// apply here: layout.css declares exactly one @font-face and the build
@@ -50,12 +65,6 @@ export const handle: Handle = async ({ event, resolve }) => {
 		preload: ({ type, path }) =>
 			type === "js" || type === "css" || (type === "font" && path.endsWith(".woff2")),
 	});
-
-	// Relay the refreshed cache cookie.
-	for (const cookie of refreshedCookies) {
-		response.headers.append("set-cookie", cookie);
-	}
-	return response;
 };
 
 // In production the app and the API are sibling subdomains sharing a parent

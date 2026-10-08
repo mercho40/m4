@@ -33,9 +33,10 @@ type AuthResponse = {
  * The API and the app are separate origins, so its cookies have to be re-issued
  * by SvelteKit. Going through `cookies.set` rather than appending raw headers
  * lets SvelteKit reconcile them with anything else set during the request, and
- * keeps `Domain` intact for the cross-subdomain deployment.
+ * keeps `Domain` intact for the cross-subdomain deployment. It also means they
+ * still go out when `handle` answers with a redirect instead of calling `resolve`.
  */
-function relayCookies(response: Response, cookies: Cookies) {
+export function relayCookies(response: Response, cookies: Cookies) {
 	for (const raw of response.headers.getSetCookie()) {
 		for (const [name, attributes] of parseSetCookieHeader(raw)) {
 			const expires = attributes.expires;

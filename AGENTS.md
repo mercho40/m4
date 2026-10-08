@@ -46,7 +46,7 @@ When calling a protected endpoint from a server load, forward the cookie:
 
 **Server-side (every request):** `hooks.server.ts` reads the session from Better Auth's cookie cache via `getCookieCache()` — no API call to the backend. Populates `event.locals.user` (only; there is no `locals.session`). When the 5-minute cache lapses but a session token is still present, it revalidates via `authClient.getSession()` and relays the refreshed `Set-Cookie`. Requires `BETTER_AUTH_SECRET` in the web app's env (must match the backend's secret).
 
-**Route protection:** The `(protected)` route group has a `+layout.server.ts` that redirects to `/login` if no session. Any route inside `src/routes/(protected)/` is automatically guarded.
+**Route protection:** `handle` in `hooks.server.ts` redirects to `/login` when there is no user and `event.route.id` is inside the `(protected)` group, so every page, `__data.json` request, form action and `+server.ts` endpoint in `src/routes/(protected)/` is guarded before any of its code runs. The group's `+layout.server.ts` repeats the check, but a layout guard alone is not enough: SvelteKit runs it concurrently with the page's own `load`, and never for actions or endpoints. If the API is unreachable while revalidating, the visitor is treated as signed out for that request instead of the page 500-ing.
 
 **Backend route protection:** an Elysia auth macro is defined in `src/index.ts` — add `{ auth: true }` to any route options and it resolves the session from request headers, returns 401 if missing, and provides `user` and `session` to the handler. No route uses it yet; `/health` is public.
 
