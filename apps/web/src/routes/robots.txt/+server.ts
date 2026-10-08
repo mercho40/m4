@@ -17,6 +17,7 @@ export const GET: RequestHandler = ({ url }) => {
 			// Only paths here, so there is no need for the canonical origin.
 			`Disallow: ${new URL(resolve("/login"), url).pathname}`,
 			`Disallow: ${new URL(resolve("/signup"), url).pathname}`,
+			`Disallow: ${new URL(resolve("/(protected)/account"), url).pathname}`,
 			`Sitemap: ${sitemap.href}`,
 		].join("\n"),
 		{

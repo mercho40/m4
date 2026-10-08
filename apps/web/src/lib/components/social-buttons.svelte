@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { Button } from "#lib/components/ui/button/index.js";
-	import { authClient } from "#lib/auth-client.js";
 	import { page } from "$app/state";
 	import { resolve } from "$app/paths";
 
@@ -17,12 +16,13 @@
 	async function signIn(provider: "google" | "github") {
 		busy = true;
 		try {
+			const { authClient } = await import("#lib/auth-client.js");
 			const { error } = await authClient.signIn.social({
 				provider,
 				// The canonical origin: Better Auth rejects a callbackURL outside
 				// `trustedOrigins`, which the page's own origin need not be (a
 				// *.vercel.app deployment URL, say).
-				callbackURL: new URL(resolve("/"), page.data.siteUrl).href,
+				callbackURL: new URL(resolve("/(protected)/account"), page.data.siteUrl).href,
 			});
 			// On success the client has already sent the browser to the provider.
 			if (!error) return;

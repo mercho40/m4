@@ -83,6 +83,7 @@ apps/
       lib/components/     App components
       lib/components/ui/  shadcn-svelte components
       routes/
-        login/            Login page
-        signup/           Signup page
+        login/            Login page (prerendered)
+        signup/           Signup page (prerendered)
+        (protected)/account/  Signed-in view
 ```

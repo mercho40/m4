@@ -4,7 +4,6 @@
 	import { Input } from "#lib/components/ui/input/index.js";
 	import * as Field from "#lib/components/ui/field/index.js";
 	import SocialButtons from "#lib/components/social-buttons.svelte";
-	import { authClient } from "#lib/auth-client.js";
 	import { goto } from "$app/navigation";
 	import { resolve } from "$app/paths";
 
@@ -19,12 +18,14 @@
 		message = "";
 
 		try {
+			// Imported on submit, so the auth client is not part of the page load.
+			const { authClient } = await import("#lib/auth-client.js");
 			const { error } = await authClient.signIn.email({
 				email: String(data.get("email")).trim(),
 				password: String(data.get("password")),
 			});
 			// The API has set the session cookie; rerun the loads so they see it.
-			if (!error) return await goto(resolve("/"), { refreshAll: true });
+			if (!error) return await goto(resolve("/(protected)/account"), { refreshAll: true });
 			message = error.message || "That email and password combination is not correct.";
 		} catch {
 			message = "Could not reach the server. Try again.";
