@@ -12,13 +12,19 @@
       ],
       "outputs": [
         ".svelte-kit/**",
+        ".vercel/output/**",
         "build/**",
         "server"
       ]
     },
+    "transit": {
+      "dependsOn": [
+        "^transit"
+      ]
+    },
     "check-types": {
       "dependsOn": [
-        "^check-types"
+        "transit"
       ]
     },
     "dev": {
