@@ -137,6 +137,9 @@ docker build -f apps/back/Dockerfile -t m4-back .
 Multi-stage: `oven/bun` compiles a self-contained binary, which is copied into
 `gcr.io/distroless/base-debian12`. The runtime image has no Bun and no
 `node_modules`. It listens on `PORT` (8080 in the image) and serves `/health`.
+The binary is PID 1 in the container, where SIGTERM has no default action, so
+`src/index.ts` handles it: stop accepting connections, let in-flight requests
+finish, exit.
 
 **Both apps must sit on subdomains of one parent domain** — e.g.
 `app.example.com` and `api.example.com`. Set `COOKIE_DOMAIN=example.com` on the
