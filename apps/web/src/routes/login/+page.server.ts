@@ -1,6 +1,7 @@
 import { fail, redirect } from "@sveltejs/kit";
 import { callAuth, isSocialProvider, SOCIAL_PROVIDER_ORIGINS } from "#lib/server/auth-api.js";
-import { getSiteOrigin } from "#lib/server/site-url.js";
+import { resolve } from "$app/paths";
+import { getSiteOrigin, siteUrl } from "#lib/server/site-url.js";
 import type { Actions, PageServerLoad } from "./$types";
 
 // Mirror image of the (protected) guard: the server already knows who this is,
@@ -42,7 +43,10 @@ export const actions: Actions = {
 
 		const result = await callAuth(
 			"sign-in/social",
-			{ provider, callbackURL: new URL("/", url).href },
+			// The canonical origin, like the Origin header below: Better Auth
+			// rejects a callbackURL outside `trustedOrigins`, which the request's
+			// own origin need not be (a *.vercel.app deployment URL, say).
+			{ provider, callbackURL: siteUrl(url, resolve("/")).href },
 			{ fetch, cookies, origin: getSiteOrigin(url) },
 		);
 
