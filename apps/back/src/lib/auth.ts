@@ -60,7 +60,11 @@ export const auth = betterAuth({
   session: {
     cookieCache: {
       enabled: true,
-      maxAge: 5 * 60, // Cache duration in seconds
+      // How long the web app trusts the signed cookie before revalidating here.
+      // Longer means fewer round trips, but a session revoked on another device
+      // stays valid there for up to this long. Signing out on the same device
+      // is immediate, since the API clears the cookie.
+      maxAge: 15 * 60, // Cache duration in seconds
     },
   },
 });

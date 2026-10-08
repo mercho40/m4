@@ -8,7 +8,8 @@ import { BETTER_AUTH_SECRET } from "$app/env/private";
 const API_ORIGIN = new URL(PUBLIC_API_URL).origin;
 
 export const handle: Handle = async ({ event, resolve }) => {
-	// Fast path: Better Auth's signed cookie cache (5-min TTL) — no backend call.
+	// Fast path: Better Auth's signed cookie cache (its TTL, `cookieCache.maxAge`,
+	// is set in apps/back/src/lib/auth.ts) — no backend call.
 	// The cache cookie's `__Secure-` prefix is decided by the WRITER (the API),
 	// so derive it from the API URL rather than this process's own NODE_ENV.
 	// The secret must be passed explicitly. SvelteKit reads .env for its
