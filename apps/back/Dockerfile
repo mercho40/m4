@@ -31,7 +31,9 @@ RUN cd apps/back && bun run build
 
 # `bun build --compile` emits a self-contained executable, so the runtime image
 # needs no Bun and no node_modules — only glibc, which distroless/base provides.
-FROM gcr.io/distroless/base-debian12 AS runtime
+# Debian 13 is the only base distroless still updates (older tags are
+# deprecated), and `nonroot` runs the server as an unprivileged user.
+FROM gcr.io/distroless/base-debian13:nonroot AS runtime
 
 WORKDIR /app
 
