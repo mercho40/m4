@@ -44,15 +44,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 		redirect(303, "/login");
 	}
 
-	return resolve(event, {
-		// SvelteKit preloads js and css by default but never fonts, "since this
-		// may cause unnecessary files to be downloaded". That caveat does not
-		// apply here: layout.css declares exactly one @font-face and the build
-		// emits a single .woff2, so preloading it is a straight LCP win on a
-		// render-blocking asset.
-		preload: ({ type, path }) =>
-			type === "js" || type === "css" || (type === "font" && path.endsWith(".woff2")),
-	});
+	return resolve(event);
 };
 
 // In production the app and the API are sibling subdomains sharing a parent

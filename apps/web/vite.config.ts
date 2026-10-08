@@ -17,8 +17,10 @@ export default defineConfig({
 			// `bun run build` fails locally without the pin. Keep the Vercel project
 			// on Node 24 so the two agree.
 			adapter: adapter({ runtime: "nodejs24.x" }),
-			dynamicCompileOptions: ({ filename }) =>
-				filename.includes("node_modules") ? undefined : { runes: true },
+			compilerOptions: {
+				// Force runes mode for the project, except for libraries.
+				runes: ({ filename }) => (filename.split(/[/\\]/).includes("node_modules") ? undefined : true),
+			},
 		}),
 	],
 });

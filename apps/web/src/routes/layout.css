@@ -1,12 +1,5 @@
 @import "tailwindcss";
-
-@font-face {
-	font-family: "Geist Variable";
-	font-style: normal;
-	font-display: swap;
-	font-weight: 100 900;
-	src: url("@fontsource-variable/geist/files/geist-latin-wght-normal.woff2") format("woff2-variations");
-}
+@import "@fontsource-variable/geist";
 
 /*
  * Single dark theme. There is no light palette and no theme switcher: the
