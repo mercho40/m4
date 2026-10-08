@@ -13,11 +13,11 @@ export const GET: RequestHandler = ({ url }) => {
 	return new Response(
 		[
 			"User-agent: *",
+			// Nothing is disallowed: /login, /signup and /account keep themselves out
+			// of search results with `noindex`, which crawlers can only see if they
+			// may fetch the page. A Disallow would hide the tag and still let the
+			// bare URL be indexed from links.
 			"Allow: /",
-			// Only paths here, so there is no need for the canonical origin.
-			`Disallow: ${new URL(resolve("/login"), url).pathname}`,
-			`Disallow: ${new URL(resolve("/signup"), url).pathname}`,
-			`Disallow: ${new URL(resolve("/(protected)/account"), url).pathname}`,
 			`Sitemap: ${sitemap.href}`,
 		].join("\n"),
 		{
