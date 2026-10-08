@@ -1,43 +1,24 @@
 import { resolve } from "$app/paths";
-import { PUBLIC_API_URL } from "$app/env/public";
-import { clientHeaders } from "#lib/server/client-ip.js";
-import { getSiteOrigin } from "#lib/server/site-url.js";
+import { callAuth } from "#lib/server/auth-api.js";
 import type { RequestHandler } from "./$types";
 
 export const POST: RequestHandler = async (event) => {
-	const { fetch, request, url } = event;
-	const response = await fetch(`${PUBLIC_API_URL.replace(/\/$/, "")}/api/auth/sign-out`, {
-		method: "POST",
-		headers: {
-			...(await clientHeaders(event)),
-			accept: "application/json",
-			"content-type": "application/json",
-			// The session cookie is attached by handleFetch, which covers every
-			// event.fetch call to the API origin.
-			origin: request.headers.get("origin") ?? getSiteOrigin(url),
-		},
-		body: JSON.stringify({ disableRedirect: true }),
-		redirect: "manual",
-	});
+	// callAuth relays the cleared session cookies through `event.cookies`, which
+	// SvelteKit adds to this response.
+	const result = await callAuth("sign-out", { disableRedirect: true }, event);
 
-	if (!response.ok) {
+	if (!result.ok) {
 		return new Response("Sign out is temporarily unavailable.", { status: 502 });
 	}
 
-	const result = (await response.json()) as { url?: string };
+	// Better Auth returns the provider's own logout page when it supports
+	// RP-initiated logout. It may be on any origin, hence a raw 303 rather than
+	// `redirect`, which only leaves the app for allowlisted origins.
 	let location: string = resolve("/");
-
-	if (result.url) {
-		const providerLogout = new URL(result.url);
-		if (providerLogout.protocol === "https:" || providerLogout.protocol === "http:") {
-			location = providerLogout.href;
-		}
+	const providerLogout = typeof result.data?.url === "string" ? URL.parse(result.data.url) : null;
+	if (providerLogout?.protocol === "https:" || providerLogout?.protocol === "http:") {
+		location = providerLogout.href;
 	}
 
-	const headers = new Headers({ location });
-	for (const cookie of response.headers.getSetCookie()) {
-		headers.append("set-cookie", cookie);
-	}
-
-	return new Response(null, { status: 303, headers });
+	return new Response(null, { status: 303, headers: { location } });
 };

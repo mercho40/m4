@@ -78,11 +78,11 @@ apps/
     src/
       hooks.server.ts     Auth session from cookie cache
       lib/api.ts          Eden Treaty client
-      lib/auth-client.ts  Better Auth client
+      lib/server/auth-api.ts  Server-side calls to the Better Auth API
       lib/components/     App components
       lib/components/ui/  shadcn-svelte components
       routes/
-        (protected)/      Auth-guarded routes
-        login/            Prerendered login page
-        signup/           Prerendered signup page
+        login/            Login page and form actions
+        signup/           Signup page and form actions
+        logout/           Sign-out endpoint
 ```

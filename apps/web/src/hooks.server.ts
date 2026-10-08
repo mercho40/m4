@@ -1,9 +1,7 @@
 import { redirect } from "@sveltejs/kit";
 import type { Handle, HandleFetch, HandleServerError } from "@sveltejs/kit/hooks";
 import { getCookieCache } from "better-auth/cookies";
-import { authClient } from "#lib/auth-client.js";
-import { relayCookies } from "#lib/server/auth-api.js";
-import { clientHeaders } from "#lib/server/client-ip.js";
+import { getSession } from "#lib/server/auth-api.js";
 import { PUBLIC_API_URL } from "$app/env/public";
 import { BETTER_AUTH_SECRET } from "$app/env/private";
 
@@ -22,37 +20,26 @@ export const handle: Handle = async ({ event, resolve }) => {
 		isSecure: PUBLIC_API_URL.startsWith("https://"),
 	});
 
-	const cookieHeader = event.request.headers.get("cookie") ?? "";
 	// When the cache lapses, `getCookieCache` returns null — but the user isn't
-	// logged out, the real session token is still valid. Revalidate via Better
-	// Auth's `getSession` (which calls the backend, re-checks the session in the
-	// DB, and re-issues a fresh cache cookie); relay that Set-Cookie so the fast
-	// path resumes instead of bouncing to /login every cache cycle. Skip it when
-	// there's no session token at all (a genuinely logged-out visitor).
-	if (!session && cookieHeader.includes("better-auth.session_token")) {
+	// logged out, the real session token is still valid. Revalidate against the
+	// API so the fast path resumes instead of bouncing to /login every cache
+	// cycle. Skip it when there's no session token at all (a genuinely
+	// logged-out visitor).
+	if (!session && event.request.headers.get("cookie")?.includes("better-auth.session_token")) {
 		try {
-			const { data } = await authClient.getSession({
-				fetchOptions: {
-					headers: { ...(await clientHeaders(event)), cookie: cookieHeader },
-					onResponse(context) {
-						relayCookies(context.response, event.cookies);
-					},
-				},
-			});
-			session = (data ?? null) as typeof session;
+			session = await getSession(event);
 		} catch (error) {
-			// better-fetch rethrows network failures. Treat the visitor as signed
-			// out for this request rather than 500 every page, public ones included,
-			// while the API is unreachable.
+			// Treat the visitor as signed out for this request rather than 500
+			// every page, public ones included, while the API is unreachable.
 			console.error(`[auth] session revalidation failed for ${event.url.pathname}`, error);
 		}
 	}
 
 	event.locals.user = session?.user ?? null;
 
-	// The guard lives here rather than in (protected)/+layout.server.ts alone:
-	// a layout load runs concurrently with the page's own load, and never runs
-	// at all for form actions or +server.ts endpoints in the group.
+	// Guards every route in src/routes/(protected)/. It lives here rather than
+	// in a layout load, which runs concurrently with the page's own load and
+	// never runs at all for form actions or +server.ts endpoints.
 	if (!event.locals.user && event.route.id?.startsWith("/(protected)")) {
 		redirect(303, "/login");
 	}

@@ -46,13 +46,13 @@ When calling a protected endpoint from a server load, forward the cookie:
 
 ### Authentication Flow
 
-**Server-side (every request):** `hooks.server.ts` reads the session from Better Auth's cookie cache via `getCookieCache()` — no API call to the backend. Populates `event.locals.user` (only; there is no `locals.session`). When the 5-minute cache lapses but a session token is still present, it revalidates via `authClient.getSession()` and relays the refreshed `Set-Cookie`. Requires `BETTER_AUTH_SECRET` in the web app's env (must match the backend's secret).
+**Server-side (every request):** `hooks.server.ts` reads the session from Better Auth's cookie cache via `getCookieCache()` — no API call to the backend. Populates `event.locals.user` (only; there is no `locals.session`). When the 5-minute cache lapses but a session token is still present, it revalidates via `getSession()` in `#lib/server/auth-api.ts` and relays the refreshed `Set-Cookie`. Requires `BETTER_AUTH_SECRET` in the web app's env (must match the backend's secret).
 
-**Route protection:** `handle` in `hooks.server.ts` redirects to `/login` when there is no user and `event.route.id` is inside the `(protected)` group, so every page, `__data.json` request, form action and `+server.ts` endpoint in `src/routes/(protected)/` is guarded before any of its code runs. The group's `+layout.server.ts` repeats the check, but a layout guard alone is not enough: SvelteKit runs it concurrently with the page's own `load`, and never for actions or endpoints. If the API is unreachable while revalidating, the visitor is treated as signed out for that request instead of the page 500-ing.
+**Route protection:** `handle` in `hooks.server.ts` redirects to `/login` when there is no user and `event.route.id` is inside the `(protected)` group, so every page, `__data.json` request, form action and `+server.ts` endpoint in `src/routes/(protected)/` is guarded before any of its code runs. The group has no routes yet; create the directory when adding the first one. Do not move the guard into a `+layout.server.ts`: SvelteKit runs a layout load concurrently with the page's own `load`, and never for actions or endpoints. If the API is unreachable while revalidating, the visitor is treated as signed out for that request instead of the page 500-ing.
 
 **Backend route protection:** an Elysia auth macro is defined in `src/index.ts` — add `{ auth: true }` to any route options and it resolves the session from request headers, returns 401 if missing, and provides `user` and `session` to the handler. No route uses it yet; `/health` is public.
 
-**Sign in / sign up / sign out** are server form actions, so they work without JavaScript; `use:enhance` only removes the full-page reload. `login/+page.server.ts` and `signup/+page.server.ts` post through `#lib/server/auth-api.ts`, which sets an explicit `Origin` header — Better Auth validates it against `trustedOrigins` and answers 403 "Invalid origin" for server-to-server calls, which carry none — and relays the API's `Set-Cookie` through `event.cookies`. Sign-out posts to `logout/+server.ts`. `authClient` is now used only by `hooks.server.ts`, never in the browser.
+**Sign in / sign up / sign out** are server form actions, so they work without JavaScript; `use:enhance` only removes the full-page reload. `login/+page.server.ts` and `signup/+page.server.ts` post through `#lib/server/auth-api.ts`, which sets an explicit `Origin` header — Better Auth validates it against `trustedOrigins` and answers 403 "Invalid origin" for server-to-server calls, which carry none — and relays the API's `Set-Cookie` through `event.cookies`. Both pages share the `social` action, `socialSignIn` from the same module. Sign-out posts to `logout/+server.ts`, which also goes through `callAuth`. There is no Better Auth client (`better-auth/svelte`); the browser never talks to the API.
 
 Both pages also redirect an already-authenticated visitor with `redirect(303, "/")`, mirroring the `(protected)` guard in the opposite direction.
 
@@ -87,7 +87,7 @@ workspace boundary into `apps/back/src` — which is what the old `@back/*` alia
 existed to patch up. Use `.js` in these specifiers even though the files are
 `.ts`; that is the standard ESM form and both TypeScript and Bun map it.
 
-`src/lib/components/ui/` contains shadcn-svelte style components (bits-ui + Tailwind). `src/lib/components/` contains app-level components (login-form, signup-form). Use `cn()` from `src/lib/utils.ts` for class merging — it wraps tailwind-variants' merger, not a second tailwind-merge copy.
+`src/lib/components/ui/` contains shadcn-svelte style components (bits-ui + Tailwind). `src/lib/components/` contains app-level components (login-form, signup-form, and the social-buttons they share). Use `cn()` from `src/lib/utils.ts` for class merging — it wraps tailwind-variants' merger, not a second tailwind-merge copy.
 
 ## Environment Variables
 
