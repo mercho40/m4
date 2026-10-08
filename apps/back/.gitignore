@@ -2,8 +2,10 @@ node_modules
 .turbo
 .DS_Store
 
-# Compiled binary
+# Compiled binary. `--sourcemap` embeds the map in it and also writes this
+# copy, which nothing reads.
 server
+server.map
 
 # Environment
 .env

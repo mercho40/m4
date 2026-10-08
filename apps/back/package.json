@@ -9,7 +9,7 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "build": "bun build --compile --minify --target bun --outfile server src/index.ts",
+    "build": "bun build --compile --minify --sourcemap --bytecode --target bun --outfile server src/index.ts",
     "dev": "bun run --watch src/index.ts",
     "start": "NODE_ENV=production ./server",
     "db:generate": "drizzle-kit generate",

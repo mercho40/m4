@@ -15,6 +15,7 @@ apps/web/.svelte-kit
 apps/web/build
 apps/web/.vercel
 apps/back/server
+apps/back/server.map
 .turbo
 **/.turbo
 
