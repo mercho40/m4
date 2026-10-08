@@ -1,4 +1,5 @@
 import type { Cookies, RequestEvent } from "@sveltejs/kit";
+import { parseJSON } from "better-auth/client";
 import { parseSetCookieHeader, type getCookieCache } from "better-auth/cookies";
 import { PUBLIC_API_URL } from "$app/env/public";
 
@@ -46,5 +47,8 @@ export async function getSession(event: RequestEvent): Promise<Session> {
 
 	relayCookies(response, event.cookies);
 
-	return response.ok ? ((await response.json()) as Session) : null;
+	// Better Auth's own client parser, which revives the ISO date strings into
+	// `Date`s, so a revalidated session has the same shape as one read from
+	// the cookie cache. Plain `response.json()` would leave them strings.
+	return response.ok ? parseJSON<Session>(await response.text()) : null;
 }
