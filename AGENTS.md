@@ -35,7 +35,7 @@ Bun monorepo with Turborepo. Two apps, no shared packages yet.
 
 Eden Treaty provides end-to-end type safety between frontend and backend. The backend exports `type App = typeof app` from `src/index.ts`, which `apps/back/package.json` publishes as that package's `.` export, so the frontend imports the type by package name in `src/lib/api.ts`: `import type { App } from "@repo/back"`.
 
-`src/lib/api.ts` exports a factory, not a singleton: `createApi(fetch)` returns a Treaty client bound to the fetch you pass, so server loads can hand it `event.fetch`. Nothing imports it yet — `/health` is currently the only Treaty-reachable route, since Better Auth's endpoints are mounted outside Elysia's typed router.
+`src/lib/api.ts` exports a factory, not a singleton: `createApi(fetch)` returns a Treaty client bound to the fetch you pass, so server loads can hand it `event.fetch`. Nothing imports it yet — `/health` is currently the only route worth calling through Treaty: Better Auth's endpoints sit behind one untyped wildcard route, `.all("/api/auth/*")` in `src/index.ts`. That route, rather than the guide's bare `.mount(auth.handler)`, keeps unknown paths out of Better Auth; the guide's prefixed `.mount("/prefix", …)` would break it, because Elysia strips the prefix while Better Auth builds OAuth callback and email URLs from `BETTER_AUTH_URL` without it.
 
 When calling a protected endpoint from a server load, forward the cookie:
 `createApi(fetch).some.route.get({ headers: { cookie: request.headers.get("cookie") ?? "" } })`.
