@@ -21,6 +21,11 @@ export default defineConfig({
 			// server-side calls to the API, such as session revalidation, would
 			// otherwise make a round trip from Vercel's default, iad1.
 			adapter: adapter({ runtime: "nodejs24.x", regions: ["gru1"] }),
+			// The app's one stylesheet is small, so it goes inline in the HTML,
+			// saving a render-blocking request on first load. The trade: every page
+			// carries it and the browser cannot cache it separately. Past this size
+			// SvelteKit goes back to a <link>.
+			inlineStyleThreshold: 50_000,
 			compilerOptions: {
 				// Force runes mode for the project, except for libraries.
 				runes: ({ filename }) => (filename.split(/[/\\]/).includes("node_modules") ? undefined : true),
