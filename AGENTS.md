@@ -59,18 +59,25 @@ The API's CORS config (`origin: WEB_URL`, `credentials: true`) is what lets thes
 
 ### Database
 
-Drizzle ORM with PostgreSQL. Schema in `apps/back/src/db/schema.ts`. Four tables: `user`, `session`, `account`, `verification` — the Better Auth core set. No plugins are enabled beyond the defaults.
+Drizzle ORM 1.0 (release candidate, pinned exactly) with PostgreSQL. Schema in `apps/back/src/db/schema.ts`. Four tables: `user`, `session`, `account`, `verification` — the Better Auth core set. No plugins are enabled beyond the defaults.
 
-`account.issuer` is **nullable and unindexed**, and that is deliberate. Better Auth 1.7.0-1.7.2 required the column and keyed account identity on `(issuer, account_id)`; 1.7.3 withdrew the requirement and no longer writes it, so a `NOT NULL` there rejects every insert and sign-up returns 500. Migration `0002` relaxes it per the upstream 1.7 upgrade guide — index dropped first, then `NOT NULL` — keeping the column so existing rows survive and a rollback stays possible. Do not re-add the constraint. Migration `0003` (generated, not hand-edited) indexes `account(provider_id, account_id)`, which is how social sign-in looks an account up.
+Relations are Relational Queries v2, declared with `defineRelations` in `src/db/relations.ts` and passed to `drizzle({ relations })`; 1.0 removed the old `relations()` helper. Better Auth's joined reads (`advanced.database.joins`) run through them, which is why `auth.ts` imports `drizzleAdapter` from `@better-auth/drizzle-adapter/relations-v2` and passes `schema` explicitly. The default `better-auth/adapters/drizzle` still targets v1: it hands `db.query` a raw SQL `where`, which v2 rejects. The relation keys (`sessions`, `accounts`, `user`) are the ones Better Auth's generator emits; its join lookup depends on them.
 
-Migrations live in `apps/back/migrations`. `meta/` (`_journal.json` plus one
-snapshot per migration) is committed and required: `drizzle-kit migrate` reads
-the journal to know what to apply, and `drizzle-kit generate` diffs the schema
-against the latest snapshot. Without it, `migrate` exits 1 without printing why
-(the real error is `Can't find meta/_journal.json file`), and `generate` emits a
-duplicate `0000` that recreates every table. `0001` and `0002` are hand-edited
-after generation, so never regenerate them; edit the SQL only, and only before
-it has been applied anywhere, because the migrator records each file by hash.
+`account.issuer` is **nullable and unindexed**, and that is deliberate. Better Auth 1.7.0-1.7.2 required the column and keyed account identity on `(issuer, account_id)`; 1.7.3 withdrew the requirement and no longer writes it, so a `NOT NULL` there rejects every insert and sign-up returns 500. Migration `20260909180819_relax_account_issuer` (formerly `0002`) relaxes it per the upstream 1.7 upgrade guide — index dropped first, then `NOT NULL` — keeping the column so existing rows survive and a rollback stays possible. Do not re-add the constraint. Migration `20261008183011_account_provider_lookup` (formerly `0003`; generated, not hand-edited) indexes `account(provider_id, account_id)`, which is how social sign-in looks an account up.
+
+Migrations live in `apps/back/migrations`, one folder per migration
+(`<UTC timestamp>_<name>/`, holding `migration.sql` and `snapshot.json`). That
+is drizzle-kit 1.0's layout; `drizzle-kit up` converted the old `0000`-`0003`
+files and `meta/_journal.json`, byte-for-byte on the SQL. Commit every folder
+whole: `drizzle-kit generate` diffs the schema against the latest snapshot, and
+the migrator records each applied migration by folder name in
+`drizzle.__drizzle_migrations`. The first 1.0 `migrate` against a database the
+0.x kit migrated adds `name` and `applied_at` columns to that table and
+backfills `name` (old rows keep a null `applied_at`), so nothing is re-applied.
+`20260821112456_add_account_issuer` and `20260909180819_relax_account_issuer`
+are hand-edited after generation, so never regenerate them; edit the SQL only,
+and only before it has been applied anywhere, because the migrator also records
+each file by hash. `bunx drizzle-kit check` verifies the folder set.
 
 ### UI Components
 
@@ -208,8 +215,9 @@ changed shape recently and the wrong-version answer is the common failure.
 - **shadcn-svelte:** append `.md` to any docs URL, e.g.
   `https://www.shadcn-svelte.com/docs/components/button.md`.
 - **Drizzle:** `https://orm.drizzle.team/llms.txt` (37 KB index) — fetch the
-  specific page from there. Skip `llms-full.txt`; it is 3.5 MB and mixes 1.0-beta
-  notes into stable docs, which misleads against the installed 0.45.3.
+  specific page from there; the installed version is 1.0, so read the
+  `upgrade-v1`, `v0-v1-changes` and `relations-v2` pages over anything older.
+  Skip `llms-full.txt`; it is 3.5 MB and mixes 0.x and 1.0 material.
 - **Elysia:** `https://elysiajs.com/llms.txt`, and the vendored skill in
   `.agents/skills/elysiajs/` already covers the macro, lifecycle, Eden, CORS, and
   the Better Auth / Drizzle / SvelteKit integrations.

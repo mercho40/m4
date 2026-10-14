@@ -73,6 +73,7 @@ apps/
       index.ts        Server entry, routes, auth macro
       lib/auth.ts     Better Auth configuration
       db/schema.ts    Drizzle database schema
+      db/relations.ts Drizzle relations (for Better Auth joins)
       db/drizzle.ts   Database client
   web/            SvelteKit frontend (port 3001)
     src/

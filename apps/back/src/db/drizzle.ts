@@ -1,5 +1,5 @@
 import { drizzle } from "drizzle-orm/bun-sql";
-import * as schema from "#back/db/schema.js";
+import { relations } from "#back/db/relations.js";
 import { DATABASE_URL } from "#back/lib/env.js";
 
 export const db = drizzle({
@@ -20,5 +20,5 @@ export const db = drizzle({
     maxLifetime: 1800,
     connectionTimeout: 10,
   },
-  schema,
+  relations,
 });

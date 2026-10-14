@@ -1,11 +1,14 @@
 import { betterAuth } from "better-auth/minimal";
-import { drizzleAdapter } from "better-auth/adapters/drizzle";
+// The default export targets Drizzle 0.x relations; Drizzle 1.0 removed them.
+import { drizzleAdapter } from "@better-auth/drizzle-adapter/relations-v2";
 import { db } from "#back/db/drizzle.js";
+import * as schema from "#back/db/schema.js";
 import { BETTER_AUTH_SECRET, BETTER_AUTH_URL, COOKIE_DOMAIN, WEB_URL } from "#back/lib/env.js";
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
     provider: "pg",
+    schema,
     // Without this the adapter issues multi-table writes unwrapped, so a failed
     // sign-up can leave an orphaned user row behind.
     transaction: true,

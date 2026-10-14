@@ -40,6 +40,7 @@ cp -R /tmp/elysia-skills/elysia .agents/skills/elysiajs
   any `components.json`, which this repo has. They drive `npx shadcn@latest`
   subcommands that do not exist in the shadcn-svelte CLI.
 - **Drizzle's skills and `drizzle-kit mcp`** ship only on `drizzle-kit@1.0.0-rc`.
-  This repo is on 0.31.11 (current stable). The skills instruct the agent to pass
-  `--output json` and handle a `missing_hints` status; neither exists in 0.31.11.
-  Revisit when upgrading to 1.0.
+  They were skipped while this repo was on 0.31.11, which lacks the
+  `--output json` flag and `missing_hints` status they rely on. The repo is now
+  on `drizzle-kit@1.0.0-rc.4`, so that reason no longer holds; they have not
+  been evaluated or vendored yet.
