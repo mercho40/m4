@@ -1,0 +1,334 @@
+name: PR
+
+# Per pull request:
+# - PR checks (required), on every event: the title is a Conventional Commit
+#   (it becomes the squash commit's title on main), the description says how
+#   the change was reviewed, and, when the PR changes migrations and Neon is
+#   configured, they are applied on top of a throwaway Neon branch of
+#   production, real data included, and the branch is deleted. It also
+#   decides whether to deploy or tear down the preview.
+# - Full-stack preview, only for PRs with the `preview` label (at most
+#   PREVIEW_MAX at once) once previews are configured (docs/operations.md): a
+#   Neon branch copied from production, a preview API on Haloy and a Worker
+#   Preview of the web app, all under vars.PREVIEW_DOMAIN, a parent domain of
+#   their own, so sign-in works and production cookies never reach preview
+#   code. Torn down when the PR closes or loses the label; preview-sweep.yml
+#   catches anything missed.
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, edited, labeled, unlabeled, closed]
+
+permissions:
+  contents: read
+
+concurrency:
+  # One preview operation per PR, never cancelled halfway: haloyd keeps
+  # deploying server-side even if the CLI is killed. Events that never touch
+  # the preview (an edit, another label) get a group of their own, so they
+  # cannot replace a queued deploy.
+  group: preview-${{ github.event.pull_request.number }}${{ (github.event.action == 'edited' || ((github.event.action == 'labeled' || github.event.action == 'unlabeled') && github.event.label.name != 'preview')) && format('-{0}', github.run_id) || '' }}
+  cancel-in-progress: false
+
+env:
+  PR: ${{ github.event.pull_request.number }}
+  PREVIEW_DOMAIN: ${{ vars.PREVIEW_DOMAIN }}
+  NEON_PROJECT_ID: ${{ vars.NEON_PROJECT_ID }}
+  NEON_PARENT: ${{ vars.NEON_PARENT_BRANCH }}
+  # The role and database in production's DATABASE_URL (Neon's defaults).
+  NEON_ROLE: ${{ vars.NEON_ROLE || 'neondb_owner' }}
+  NEON_DATABASE: ${{ vars.NEON_DATABASE || 'neondb' }}
+  TURBO_TELEMETRY_DISABLED: 1
+
+jobs:
+  checks:
+    name: PR checks
+    # On every event, label ones included: the newest check run on a commit is
+    # the one branch protection reads, so a later run must never pass what an
+    # earlier one failed.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      deploy: ${{ steps.plan.outputs.deploy }}
+      teardown: ${{ steps.plan.outputs.teardown }}
+    env:
+      NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+      NEON_BRANCH: ci/pr-${{ github.event.pull_request.number }}-${{ github.run_id }}
+    steps:
+      # First, so the preview jobs get their answer even when a check below fails.
+      - name: Plan the preview
+        id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ACTION: ${{ github.event.action }}
+          LABEL: ${{ github.event.label.name }}
+          LABELLED: ${{ contains(github.event.pull_request.labels.*.name, 'preview') }}
+          SAME_REPO: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
+          ACTOR: ${{ github.actor }}
+          MAX: ${{ vars.PREVIEW_MAX || 2 }}
+          # Every secret and variable a preview needs; secrets cannot be read
+          # in an `if`, only whether they are set.
+          CONFIGURED: >-
+            ${{ vars.PREVIEW_DOMAIN != '' && vars.NEON_PROJECT_ID != '' && vars.NEON_PARENT_BRANCH != ''
+            && vars.CLOUDFLARE_ACCOUNT_ID != ''
+            && secrets.NEON_API_KEY != '' && secrets.HALOY_API_TOKEN != '' && secrets.CLOUDFLARE_API_TOKEN != ''
+            && secrets.PREVIEW_BETTER_AUTH_SECRET != '' }}
+        run: |
+          set -euo pipefail
+          deploy=false
+          teardown=false
+          case "$ACTION/$LABEL" in
+            unlabeled/preview)
+              teardown=true ;;
+            closed/*)
+              teardown=$LABELLED ;;
+            opened/* | reopened/* | synchronize/* | labeled/preview)
+              if [ "$LABELLED" != true ]; then
+                :
+              # Forks and Dependabot get no secrets, so no preview.
+              elif [ "$SAME_REPO" != true ] || [ "$ACTOR" = "dependabot[bot]" ]; then
+                echo "::warning::No preview for fork or Dependabot PRs."
+              elif [ "$CONFIGURED" != true ]; then
+                echo "::notice::No preview: previews are not configured (docs/operations.md, \"Previews\")."
+              else
+                open=$(gh pr list -R "$GITHUB_REPOSITORY" --state open --label preview --json number --jq length)
+                # Not a failure: PR checks must not fail over a preview.
+                if [ "$open" -gt "$MAX" ]; then
+                  echo "::warning::No preview: $open open PRs carry the preview label; the limit is $MAX. Remove it from one, then re-add it here."
+                else
+                  deploy=true
+                fi
+              fi ;;
+          esac
+          # Nothing was deployed without the configuration, so nothing to remove.
+          [ "$CONFIGURED" = true ] || teardown=false
+          printf 'deploy=%s\nteardown=%s\n' "$deploy" "$teardown" | tee -a "$GITHUB_OUTPUT"
+
+      # The PR title becomes the squash commit's title on main: type(scope)?: summary.
+      - name: Title is a Conventional Commit
+        if: github.event.action != 'closed'
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          re='^(feat|fix|perf|refactor|chore|ci|build|docs|test|revert)(\([a-z0-9-]+\))?!?: .+[^.]$'
+          if [[ ! "$TITLE" =~ $re ]]; then
+            echo "::error::Use a Conventional Commit title, e.g. 'feat(web): add the settings page' (no trailing period)."
+            exit 1
+          fi
+
+      # Every PR gets its one review; the review-loop or council skill writes
+      # this line, and a PR that skips it says why.
+      - name: Description says how it was reviewed
+        if: github.event.action != 'closed'
+        env:
+          BODY: ${{ github.event.pull_request.body }}
+        run: |
+          if ! grep -qE '^(Reviewed with (review-loop|council)|Not reviewed): .+' <<<"$BODY"; then
+            echo "::error::Run the review-loop skill and keep its 'Reviewed with review-loop: …' line in the description (a council's 'Reviewed with council: …' counts), or add 'Not reviewed: <why>'."
+            exit 1
+          fi
+
+      - name: Does this PR change migrations?
+        id: changed
+        if: github.event.action != 'closed'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          files=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR/files" --paginate --jq '.[].filename')
+          if ! grep -qE '^(apps/back/(migrations/|drizzle\.config\.ts$)|\.github/(workflows/pr\.yml$|scripts/neon-))' <<<"$files"; then
+            echo "No migration changes; nothing to rehearse."
+          elif [ -z "$NEON_PROJECT_ID" ] || [ -z "$NEON_PARENT" ]; then
+            echo "::notice::Not rehearsing the migrations on production's data: Neon is not configured (NEON_PROJECT_ID, NEON_PARENT_BRANCH). CI's Test still applies them to an empty database."
+          elif [ -z "$NEON_API_KEY" ]; then
+            echo "::error::Rehearsing needs this repository's secrets, which fork and Dependabot PRs do not get. Push the branch to this repository."
+            exit 1
+          else
+            echo "rehearse=true" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.changed.outputs.rehearse == 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - if: steps.changed.outputs.rehearse == 'true'
+        uses: ./.github/actions/setup
+      - if: steps.changed.outputs.rehearse == 'true'
+        name: Branch production (deleted below; expires in a day as a backstop)
+        run: |
+          npm install --global --ignore-scripts neon@8.4.5
+          .github/scripts/neon-branch.sh "$NEON_BRANCH" 1
+      - if: steps.changed.outputs.rehearse == 'true'
+        name: Masked, direct DATABASE_URL
+        run: .github/scripts/neon-url.sh "$NEON_BRANCH"
+      - if: steps.changed.outputs.rehearse == 'true'
+        name: Apply this PR's migrations on top of production's
+        working-directory: apps/back
+        run: bunx drizzle-kit migrate
+      - if: always() && steps.changed.outputs.rehearse == 'true'
+        name: Delete the branch
+        run: neon branches delete "$NEON_BRANCH" --project-id "$NEON_PROJECT_ID" || true
+
+  api:
+    name: Preview API
+    needs: checks
+    # Also when the title or the rehearsal failed: a preview never waits on them.
+    if: ${{ !cancelled() && needs.checks.outputs.deploy == 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+      NEON_BRANCH: preview/pr-${{ github.event.pull_request.number }}
+      PREVIEW_BETTER_AUTH_SECRET: ${{ secrets.PREVIEW_BETTER_AUTH_SECRET }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup
+      - run: |
+          npm install --global --ignore-scripts neon@8.4.5
+          npm install --global haloy@0.1.0-beta.73
+      - name: Neon branch (created, or reset to production; expires in 7 days)
+        run: .github/scripts/neon-branch.sh "$NEON_BRANCH" 7
+      - name: Masked, direct DATABASE_URL
+        run: .github/scripts/neon-url.sh "$NEON_BRANCH"
+      - name: Migrate
+        working-directory: apps/back
+        run: bunx drizzle-kit migrate
+      # The copy carries production's sessions and pending verification
+      # tokens. They would not validate against the preview secret, but they
+      # are credentials all the same.
+      - name: Drop copied sessions and verification tokens
+        run: |
+          # shellcheck disable=SC2016 # JavaScript template literals, not shell
+          bun -e 'import { sql } from "bun"; await sql`DELETE FROM "session"`; await sql`DELETE FROM "verification"`; await sql.close();'
+      - name: Render and check the Haloy config
+        run: |
+          set -euo pipefail
+          # Substituted into sed and a YAML file: a hostname and nothing else.
+          [[ "$PREVIEW_DOMAIN" =~ ^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$ ]] ||
+            { echo "::error::vars.PREVIEW_DOMAIN is not a hostname: $PREVIEW_DOMAIN"; exit 1; }
+          sed -e "s/__PR__/$PR/g" -e "s/__PREVIEW_DOMAIN__/$PREVIEW_DOMAIN/g" \
+            apps/back/haloy.preview.yaml > apps/back/haloy.pr.yaml
+          grep -qx "name: m4-back-pr-$PR" apps/back/haloy.pr.yaml
+          # A wrong domain could take over production traffic (see the template).
+          domains=$(grep -E '^\s*-?\s*domain:' apps/back/haloy.pr.yaml)
+          if [ "$domains" != "  - domain: pr-$PR.api.$PREVIEW_DOMAIN" ]; then
+            echo "::error::the rendered preview config claims other domains: $domains"
+            exit 1
+          fi
+          # The preview API must trust only this PR's web app, and scope its
+          # cookie to the preview domain.
+          value() { sed -n "/name: $1\$/{n;s/^ *value: //p}" apps/back/haloy.pr.yaml; }
+          [ "$(value WEB_URL)" = "https://pr-$PR.app.$PREVIEW_DOMAIN" ] ||
+            { echo "::error::the rendered WEB_URL is not this PR's web app: $(value WEB_URL)"; exit 1; }
+          [ "$(value BETTER_AUTH_URL)" = "https://pr-$PR.api.$PREVIEW_DOMAIN" ] ||
+            { echo "::error::the rendered BETTER_AUTH_URL is not this PR's API: $(value BETTER_AUTH_URL)"; exit 1; }
+          [ "$(value COOKIE_DOMAIN)" = "$PREVIEW_DOMAIN" ] ||
+            { echo "::error::the rendered COOKIE_DOMAIN is not the preview domain: $(value COOKIE_DOMAIN)"; exit 1; }
+          PREVIEW_DATABASE_URL="$DATABASE_URL" haloy validate-config -c apps/back/haloy.pr.yaml
+      - name: Register the haloy server
+        env:
+          HALOY_TOKEN: ${{ secrets.HALOY_API_TOKEN }}
+        run: |
+          haloy server add "$(sed -n 's/^server: *//p' apps/back/haloy.pr.yaml)" "$HALOY_TOKEN" --force
+      - name: Deploy
+        # Same health-check reading as deploy.yml: haloy exits 0 on a failed one.
+        run: |
+          set -o pipefail
+          PREVIEW_DATABASE_URL="$DATABASE_URL" haloy deploy -c apps/back/haloy.pr.yaml 2>&1 | tee haloy-deploy.log
+          if grep -qiE "deployment failed|failed health check" haloy-deploy.log || ! grep -qi "health check passed" haloy-deploy.log; then
+            echo "::error::haloy did not report a healthy preview deployment"
+            exit 1
+          fi
+          # The first deploy waits for Let's Encrypt.
+          curl --retry 20 --retry-delay 6 --retry-all-errors -fsS "https://pr-$PR.api.$PREVIEW_DOMAIN/health"
+
+  web:
+    name: Preview web app
+    needs: checks
+    if: ${{ !cancelled() && needs.checks.outputs.deploy == 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+      PREVIEW_BETTER_AUTH_SECRET: ${{ secrets.PREVIEW_BETTER_AUTH_SECRET }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup
+      # Built against this PR's API and uploaded as Worker Preview pr-<n>,
+      # served on the preview-only custom domain in wrangler.jsonc, where the
+      # preview API's cookie reaches it. Its runtime values are its own, never
+      # production's: Previews do not inherit the Worker's vars or secrets.
+      - name: Build it and upload it as Preview pr-${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          host="pr-$PR.app.$PREVIEW_DOMAIN"
+          # The URL only exists if the preview route names this domain (and a
+          # deploy from main has applied it).
+          if ! grep -qF "\"app.$PREVIEW_DOMAIN\"" apps/web/wrangler.jsonc; then
+            echo "::error::apps/web/wrangler.jsonc's preview route is not app.$PREVIEW_DOMAIN (vars.PREVIEW_DOMAIN)."
+            exit 1
+          fi
+          export PUBLIC_API_URL="https://pr-$PR.api.$PREVIEW_DOMAIN"
+          export PUBLIC_SITE_URL="https://$host"
+          bunx turbo run build --filter=@repo/web
+          secrets="$RUNNER_TEMP/web-secrets.json"
+          trap 'rm -f "$secrets"' EXIT
+          jq -n '{BETTER_AUTH_SECRET: env.PREVIEW_BETTER_AUTH_SECRET}' > "$secrets"
+          (cd apps/web && bunx wrangler preview --name "pr-$PR" --message "$GITHUB_SHA" --tag "${GITHUB_SHA::7}" \
+            --var "PUBLIC_SITE_URL:$PUBLIC_SITE_URL" --secrets-file "$secrets")
+          # Right after the preview route's first deploy, its wildcard
+          # certificate can take minutes to reach the edge.
+          curl --retry 30 --retry-delay 10 --retry-all-errors -fsS -o /dev/null "https://$host/" ||
+            { echo "::error::https://$host is not serving"; exit 1; }
+
+  comment:
+    name: Preview links
+    needs: [checks, api, web]
+    if: ${{ !cancelled() && needs.checks.outputs.deploy == 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      pull-requests: write
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          API: ${{ needs.api.result }}
+          WEB: ${{ needs.web.result }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          p="pr-$PR"
+          d="$PREVIEW_DOMAIN"
+          body=$(cat <<EOF
+          <!-- m4-preview -->
+          ### Preview of ${SHA::7} (API: $API, web app: $WEB)
+
+          | App | URL |
+          |---|---|
+          | web | https://$p.app.$d |
+          | API | https://$p.api.$d/health |
+
+          Database: Neon branch \`preview/$p\`, copied from production on this push, sessions cleared.
+          Reset on every push; deleted when the PR closes or loses the \`preview\` label.
+          Sign in with email and password; social sign-in is off on previews.
+          EOF
+          )
+          ids=$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" --paginate \
+                  --jq '.[] | select(.body | startswith("<!-- m4-preview -->")) | .id')
+          if [ -n "$ids" ]; then
+            gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/${ids%%$'\n'*}" -f body="$body" >/dev/null
+          else
+            gh pr comment "$PR" -R "$GITHUB_REPOSITORY" --body "$body"
+          fi
+
+  teardown:
+    name: Teardown
+    needs: checks
+    if: ${{ !cancelled() && needs.checks.outputs.teardown == 'true' }}
+    permissions:
+      contents: read
+      pull-requests: write
+    uses: ./.github/workflows/preview-teardown.yml
+    with:
+      pr: ${{ github.event.pull_request.number }}
+    secrets: inherit

@@ -1,0 +1,234 @@
+name: Deploy
+
+# Production, on every push to main: the API first (a new web app may call new
+# endpoints), then the web app, each only when it changed. A commit is
+# deployed only once CI's Test job has passed on exactly its tree: in the pull
+# request it squashes (.github/scripts/tested.sh), or else here, first.
+#
+# Each half deploys only once it is configured (docs/operations.md): the API
+# with the HALOY_API_TOKEN secret, the web app with the CLOUDFLARE_API_TOKEN
+# secret.
+# Unconfigured, it is skipped with a notice, so a fresh copy of the template
+# stays green.
+on:
+  push:
+    branches: [main]
+  # Deploys main again, both halves whether they changed or not (Test runs
+  # first): the first deploy after configuring them, or a redeploy. Never from
+  # another branch.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  TURBO_TELEMETRY_DISABLED: 1
+
+jobs:
+  tested:
+    name: Already tested?
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: read
+    outputs:
+      tested: ${{ steps.tested.outputs.tested }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: .github/scripts
+      - id: tested
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: .github/scripts/tested.sh
+
+  test:
+    name: Test
+    needs: tested
+    # Also when the check itself failed: then nothing is known, so test.
+    if: ${{ !cancelled() && github.ref == 'refs/heads/main' && needs.tested.outputs.tested != 'true' }}
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/ci.yml
+    secrets: inherit
+
+  deploy:
+    name: Deploy
+    needs: [tested, test]
+    if: >-
+      !cancelled() && github.ref == 'refs/heads/main'
+      && (needs.tested.outputs.tested == 'true' || needs.test.result == 'success')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      # changed.sh reads earlier Deploy runs.
+      actions: read
+      # Turborepo's remote cache (.github/actions/setup).
+      id-token: write
+    # One rollout at a time, never cancelled halfway (migrations). rollback.yml
+    # uses the same group.
+    concurrency:
+      group: deploy
+      cancel-in-progress: false
+    env:
+      # Read by drizzle-kit and, through haloy.yaml's `from.env`, by the
+      # container. haloy aborts if any one haloy.yaml lists is unset or empty.
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
+      # Only read once haloy.yaml's social sign-in lines are uncommented.
+      GITHUB_CLIENT_SECRET: ${{ secrets.GITHUB_CLIENT_SECRET }}
+      GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+      HALOY_TOKEN: ${{ secrets.HALOY_API_TOKEN }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      # A half with no credentials at all is the template's state: skip it.
+      # A half with some but not all, or still on the template's example.com,
+      # is a mistake: fail rather than deploy it half-configured.
+      - name: What is configured?
+        id: configured
+        run: |
+          set -euo pipefail
+          failed=0
+          if [ -z "$HALOY_TOKEN" ]; then
+            echo "::notice::API deploy skipped: the HALOY_API_TOKEN secret is not set (docs/operations.md)."
+            echo "api=false" >> "$GITHUB_OUTPUT"
+          else
+            for name in DATABASE_URL BETTER_AUTH_SECRET; do
+              [ -n "${!name}" ] || { echo "::error::HALOY_API_TOKEN is set but the $name secret is not."; failed=1; }
+            done
+            if grep -q 'example\.com' apps/back/haloy.yaml; then
+              echo "::error::apps/back/haloy.yaml still names example.com; set your server and domains."
+              failed=1
+            fi
+            echo "api=true" >> "$GITHUB_OUTPUT"
+          fi
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+            echo "::notice::Web deploy skipped: the CLOUDFLARE_API_TOKEN secret is not set (docs/operations.md)."
+            echo "web=false" >> "$GITHUB_OUTPUT"
+          else
+            [ -n "$CLOUDFLARE_ACCOUNT_ID" ] ||
+              { echo "::error::CLOUDFLARE_API_TOKEN is set but the CLOUDFLARE_ACCOUNT_ID variable is not."; failed=1; }
+            # The Worker's runtime secret, the same value the API gets.
+            [ -n "$BETTER_AUTH_SECRET" ] ||
+              { echo "::error::CLOUDFLARE_API_TOKEN is set but the BETTER_AUTH_SECRET secret is not."; failed=1; }
+            for file in .github/build.env apps/web/wrangler.jsonc apps/web/_headers; do
+              if grep -qE 'example\.(com|net)' "$file"; then
+                echo "::error::$file still names example.com or example.net; set your domains."
+                failed=1
+              fi
+            done
+            echo "web=true" >> "$GITHUB_OUTPUT"
+          fi
+          exit "$failed"
+      - name: What changed since the last successful deploy?
+        id: changed
+        if: steps.configured.outputs.api == 'true' || steps.configured.outputs.web == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # An unconfigured half's runs succeed too, so changed.sh would count
+          # what they skipped as deployed: a manual run deploys everything.
+          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then
+            printf 'back=true\nmigrations=true\nweb=true\n' | tee -a "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          root=(bun.lock package.json bunfig.toml turbo.json)
+          .github/scripts/changed.sh back apps/back "${root[@]}" .github/workflows/deploy.yml .github/scripts
+          .github/scripts/changed.sh migrations apps/back/migrations
+          # apps/web depends on @repo/back for types only: no backend change
+          # alters its build output.
+          .github/scripts/changed.sh web apps/web "${root[@]}" .github/build.env .github/workflows/deploy.yml
+      - if: >-
+          (steps.configured.outputs.api == 'true' && steps.changed.outputs.back == 'true')
+          || (steps.configured.outputs.web == 'true' && steps.changed.outputs.web == 'true')
+        uses: ./.github/actions/setup
+        with:
+          turbo-team: ${{ vars.TURBO_TEAM }}
+
+      # A Neon branch of production as it was before migrating, so a bad
+      # migration can be undone with `neon branches restore` for 3 days. It
+      # has no compute, so it costs nothing until used. Only the newest two
+      # restore points are kept: on Neon's free plan a project holds 10
+      # branches, which previews and the migration rehearsal need too. A
+      # failed cleanup warns and never holds the deploy. Without Neon, take
+      # your own provider's backup before merging a migration.
+      - if: >-
+          steps.configured.outputs.api == 'true' && steps.changed.outputs.back == 'true'
+          && steps.changed.outputs.migrations == 'true'
+        name: Restore point before migrating
+        env:
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+          NEON_PROJECT_ID: ${{ vars.NEON_PROJECT_ID }}
+          NEON_PARENT: ${{ vars.NEON_PARENT_BRANCH }}
+        run: |
+          if [ -z "$NEON_API_KEY" ] || [ -z "$NEON_PROJECT_ID" ] || [ -z "$NEON_PARENT" ]; then
+            echo "::notice::No restore point: Neon is not configured (NEON_API_KEY, NEON_PROJECT_ID, NEON_PARENT_BRANCH)."
+            exit 0
+          fi
+          npm install --global --ignore-scripts neon@8.4.5
+          neon branches create --project-id "$NEON_PROJECT_ID" --parent "$NEON_PARENT" \
+            --name "backup/pre-deploy-${GITHUB_SHA::7}" --no-compute --no-secrets \
+            --expires-at "$(date -u -d '+3 days' +%Y-%m-%dT%H:%M:%SZ)" >/dev/null
+          echo "Restore point: backup/pre-deploy-${GITHUB_SHA::7} (expires in 3 days)" >> "$GITHUB_STEP_SUMMARY"
+          neon branches list --project-id "$NEON_PROJECT_ID" --output json |
+            jq -r '[.[] | select(.name | startswith("backup/pre-deploy-"))] | sort_by(.created_at) | reverse | .[2:][] | .id' |
+            while read -r old; do
+              neon branches delete "$old" --project-id "$NEON_PROJECT_ID" >/dev/null ||
+                echo "::warning::could not delete the old restore point $old"
+            done
+      # Before the rollout, so the new code never runs against an old schema.
+      # Migrations must therefore stay backward compatible with the running
+      # code (expand now, contract in a later PR).
+      - if: steps.configured.outputs.api == 'true' && steps.changed.outputs.back == 'true'
+        name: Apply migrations
+        working-directory: apps/back
+        run: bunx drizzle-kit migrate
+      - if: steps.configured.outputs.api == 'true' && steps.changed.outputs.back == 'true'
+        name: Deploy the API
+        # `haloy deploy` exits 0 even when the new container fails its health
+        # check (it keeps the old one serving), so read the outcome from its
+        # output.
+        run: |
+          npm install --global haloy@0.1.0-beta.73
+          haloy server add "$(sed -n 's/^server: *//p' apps/back/haloy.yaml)" "$HALOY_TOKEN" --force
+          set -o pipefail
+          haloy deploy -c apps/back/haloy.yaml 2>&1 | tee haloy-deploy.log
+          if grep -qiE "deployment failed|failed health check" haloy-deploy.log; then
+            echo "::error::haloy reported a failed deployment; the previous container is still serving."
+            exit 1
+          fi
+          if ! grep -qi "health check passed" haloy-deploy.log; then
+            echo "::error::haloy never reported a passing health check; treating the deploy as failed."
+            exit 1
+          fi
+          echo "API ${GITHUB_SHA::7} deployed. Roll back with the Rollback workflow (target: back)." >> "$GITHUB_STEP_SUMMARY"
+
+      # Built with build.env's values, the ones CI's Test built with, so the
+      # build replays from Turborepo's remote cache. The Worker's runtime
+      # values go with the deploy itself: PUBLIC_SITE_URL as a var (a deploy
+      # drops vars it is not given, so nothing stale survives) and
+      # BETTER_AUTH_SECRET as a secret, from a file outside the checkout.
+      - if: steps.configured.outputs.web == 'true' && steps.changed.outputs.web == 'true'
+        name: Deploy the web app to Cloudflare Workers
+        run: |
+          set -euo pipefail
+          set -a
+          # shellcheck disable=SC1091
+          . .github/build.env
+          set +a
+          bunx turbo run build --filter=@repo/web
+          secrets="$RUNNER_TEMP/web-secrets.json"
+          trap 'rm -f "$secrets"' EXIT
+          jq -n '{BETTER_AUTH_SECRET: env.BETTER_AUTH_SECRET}' > "$secrets"
+          (cd apps/web && bunx wrangler deploy --message "$GITHUB_SHA" --tag "${GITHUB_SHA::7}" \
+            --var "PUBLIC_SITE_URL:$PUBLIC_SITE_URL" --secrets-file "$secrets")
+          echo "Web app ${GITHUB_SHA::7} deployed. Roll back with the Rollback workflow (target: web)." >> "$GITHUB_STEP_SUMMARY"

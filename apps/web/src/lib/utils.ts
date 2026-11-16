@@ -6,7 +6,7 @@ import { cn as tvCn } from "tailwind-variants";
 // stays clsx-shaped (bits-ui types `class` as `ClassValue | null | undefined`),
 // which tv's tuple-based `CnOptions` does not express — hence the cast.
 export function cn(...inputs: (ClassValue | null | undefined)[]) {
-	return tvCn(...(inputs as Parameters<typeof tvCn>)) ?? "";
+	return tvCn(...(inputs as Parameters<typeof tvCn>));
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

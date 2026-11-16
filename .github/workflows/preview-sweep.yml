@@ -1,0 +1,94 @@
+name: Preview sweep
+
+# Daily safety net: tears down previews whose PR is closed, unlabeled, or idle
+# for 7 days, including ones a missed or failed teardown left behind. Haloy
+# cannot list apps, so the Neon branches and Worker Previews that exist, plus
+# recently closed labeled PRs, stand in for that list. An idle PR loses its
+# `preview` label; adding it back redeploys. Skips with a notice until
+# previews are configured.
+on:
+  schedule:
+    - cron: "17 5 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  find:
+    name: Find stale previews
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: write
+    outputs:
+      prs: ${{ steps.find.outputs.prs }}
+    steps:
+      - id: find
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PREVIEW_DOMAIN: ${{ vars.PREVIEW_DOMAIN }}
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+          NEON_PROJECT_ID: ${{ vars.NEON_PROJECT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          if [ -z "$PREVIEW_DOMAIN" ]; then
+            echo "::notice::Previews are not configured (vars.PREVIEW_DOMAIN); nothing to sweep."
+            echo "prs=[]" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          cutoff=$(date -u -d '-7 days' +%Y-%m-%dT%H:%M:%SZ)
+          keep=$(gh pr list -R "$GITHUB_REPOSITORY" --state open --label preview --json number,updatedAt \
+                   --jq "[.[] | select(.updatedAt >= \"$cutoff\") | .number]")
+          closed=$(gh pr list -R "$GITHUB_REPOSITORY" --state closed --label preview \
+                     --search "closed:>=$(date -u -d '-3 days' +%F)" --json number --jq '[.[].number]')
+          stale=$(gh pr list -R "$GITHUB_REPOSITORY" --state open --label preview --json number,updatedAt \
+                    --jq "[.[] | select(.updatedAt < \"$cutoff\") | .number]")
+          # Tolerant of the exact JSON shapes: collect every name that looks like a preview.
+          neon='[]'
+          if [ -n "$NEON_API_KEY" ] && [ -n "$NEON_PROJECT_ID" ]; then
+            npm install --global --ignore-scripts neon@8.4.5
+            neon=$(neon branches list --project-id "$NEON_PROJECT_ID" --output json \
+              | jq '[.. | .name? // empty | strings | select(test("^preview/pr-[0-9]+$")) | ltrimstr("preview/pr-") | tonumber]')
+          fi
+          workers='[]'
+          if [ -n "$CLOUDFLARE_API_TOKEN" ] && [ -n "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            # The Worker's name is the one in apps/web/wrangler.jsonc.
+            workers=$(curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+              "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/workers/m4-web/previews" \
+              | jq '[.. | .name? // empty | strings | select(test("^pr-[0-9]+$")) | ltrimstr("pr-") | tonumber]') \
+              || { echo "::warning::could not list the Worker Previews"; workers='[]'; }
+          fi
+          # Removing the label with this token starts no workflow; the sweep
+          # tears these down itself.
+          for n in $(jq -r '.[]' <<<"$stale"); do
+            gh pr edit "$n" -R "$GITHUB_REPOSITORY" --remove-label preview
+          done
+          prs=$(jq -cn --argjson k "$keep" --argjson a "$closed" --argjson s "$stale" --argjson b "$neon" --argjson c "$workers" \
+                  '(($a + $s + $b + $c) | unique) - $k')
+          echo "Previews to tear down: $prs"
+          echo "prs=$prs" >> "$GITHUB_OUTPUT"
+
+  sweep:
+    name: Sweep
+    needs: find
+    if: needs.find.outputs.prs != '[]'
+    # Waits for any preview run of the same PR (pr.yml's group).
+    concurrency:
+      group: preview-${{ matrix.pr }}
+      cancel-in-progress: false
+    strategy:
+      max-parallel: 1
+      matrix:
+        pr: ${{ fromJSON(needs.find.outputs.prs) }}
+    permissions:
+      contents: read
+      pull-requests: write
+    uses: ./.github/workflows/preview-teardown.yml
+    with:
+      pr: ${{ matrix.pr }}
+    secrets: inherit

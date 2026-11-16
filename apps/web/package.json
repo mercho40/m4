@@ -9,31 +9,38 @@
   "scripts": {
     "dev": "bun --bun run vite dev --port 3001",
     "build": "vite build",
-    "preview": "vite preview",
+    "preview": "wrangler dev .svelte-kit/cloudflare/_worker.js --port 4173",
     "prepare": "svelte-kit sync || echo ''",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --tsgo --watch",
-    "check-types": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --tsgo"
+    "check-types": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --tsgo",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "devDependencies": {
-    "@lucide/svelte": "^1.52.0",
-    "@sveltejs/adapter-vercel": "^7.0.0",
-    "@sveltejs/kit": "^3.0.1",
-    "@sveltejs/vite-plugin-svelte": "^7.3.1",
-    "@tailwindcss/vite": "^4.3.3",
-    "@typescript/native": "npm:typescript@7",
-    "bits-ui": "^2.19.5",
-    "clsx": "^2.1.1",
-    "elysia": "^1.4.30",
-    "svelte": "^5.57.2",
-    "svelte-check": "^4.7.6",
-    "tailwind-variants": "^3.3.1",
-    "tailwindcss": "^4.3.3",
-    "typescript": "~6.0.3",
-    "vite": "^8.3.3"
+    "@lucide/svelte": "catalog:",
+    "@repo/eslint-config": "workspace:*",
+    "@sveltejs/adapter-cloudflare": "catalog:",
+    "@sveltejs/kit": "catalog:",
+    "@sveltejs/vite-plugin-svelte": "catalog:",
+    "@tailwindcss/vite": "catalog:",
+    "@typescript/native": "catalog:",
+    "bits-ui": "catalog:",
+    "clsx": "catalog:",
+    "elysia": "catalog:",
+    "eslint": "catalog:",
+    "svelte": "catalog:",
+    "svelte-check": "catalog:",
+    "tailwind-variants": "catalog:",
+    "tailwindcss": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vitest": "catalog:",
+    "wrangler": "catalog:"
   },
   "dependencies": {
+    "@elysiajs/eden": "catalog:",
     "@repo/back": "workspace:*",
-    "@elysiajs/eden": "^1.4.9",
-    "better-auth": "^1.7.7"
+    "better-auth": "catalog:"
   }
 }

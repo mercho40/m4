@@ -1,0 +1,56 @@
+# Template for per-PR preview APIs. CI (.github/workflows/pr.yml) replaces
+# __PR__ with the PR number and __PREVIEW_DOMAIN__ with vars.PREVIEW_DOMAIN,
+# and writes haloy.pr.yaml next to this file (git-ignored; paths resolve
+# against the config file). Never deploy this template directly, and never
+# give it a name or domain production uses: haloy does not notice two apps
+# claiming one domain, so a wrong domain could take over production traffic.
+# CI checks the rendered name, domain and origins before deploying.
+#
+# PREVIEW_DOMAIN is a parent domain of its own, not production's, so
+# production session cookies never reach preview code and the other way round.
+name: m4-back-pr-__PR__
+# The same haloyd as haloy.yaml's.
+server: haloy.example.com
+
+image:
+  # Its own repository: a shared one could race production's re-tag.
+  repository: m4-back-pr-__PR__
+  tag: preview
+  build_config:
+    context: ../..
+    dockerfile: apps/back/Dockerfile
+    platform: linux/amd64
+  history:
+    strategy: local
+    count: 1
+
+# Replace instead of rolling: no second container during deploys, which
+# matters on a small server production shares.
+deployment_strategy: replace
+
+domains:
+  - domain: pr-__PR__.api.__PREVIEW_DOMAIN__
+
+port: "8080"
+health_check_path: /health
+
+env:
+  - name: NODE_ENV
+    value: production
+  - name: BETTER_AUTH_URL
+    value: https://pr-__PR__.api.__PREVIEW_DOMAIN__
+  # The PR's own web app (its Worker Preview), never production's.
+  - name: WEB_URL
+    value: https://pr-__PR__.app.__PREVIEW_DOMAIN__
+  - name: COOKIE_DOMAIN
+    value: __PREVIEW_DOMAIN__
+  # No social providers: they accept only exact redirect URIs, which per-PR
+  # hosts cannot be. Email and password sign-in works.
+
+  # The PR's own Neon branch and a preview-only secret; never production's.
+  - name: DATABASE_URL
+    from:
+      env: PREVIEW_DATABASE_URL
+  - name: BETTER_AUTH_SECRET
+    from:
+      env: PREVIEW_BETTER_AUTH_SECRET

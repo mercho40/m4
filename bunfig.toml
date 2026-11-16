@@ -1,0 +1,53 @@
+[install]
+# Bun already picks the isolated linker for a workspace whose bun.lock has
+# `configVersion: 1`, but only then: written down, a regenerated lockfile or a
+# Bun upgrade cannot flip it to hoisted. AGENTS.md's single-`elysia`-copy rule
+# is stated in terms of this linker.
+linker = "isolated"
+# Supply-chain guard: only install versions published at least 3 days ago.
+# Existing lockfile entries are not re-checked. Exempt an urgent release with
+# `minimumReleaseAgeExcludes = ["name"]` (by package name: Bun refuses the
+# `name@version` form), which lets every version of it through, so take it
+# out once that release is 3 days old.
+minimumReleaseAge = 259200
+
+# `bun test` reads only the bunfig.toml in its working directory, so a run
+# from the repository root would otherwise skip apps/back's preload, which
+# refuses any database but a *_test one and replaces the environment. The
+# `test` script runs from apps/back; this covers a `bun test` typed here.
+[test]
+preload = ["./apps/back/test/setup.ts"]
+# Vitest's files (apps/web) and Playwright's (e2e/) are not Bun's: a `bun
+# test` typed here would fail on their imports. Each runner keeps to its own:
+# Vitest's `include` reaches only apps/web/src, and Playwright's specs end in
+# .e2e.ts, a name neither test runner picks up.
+pathIgnorePatterns = ["apps/web/**", "e2e/**"]
+
+# `bun fmt`, the formatter (`bun run format` checks, `format:fix` writes).
+# Prettier's options under Prettier's names; what every .gitignore hides is
+# skipped already, so `ignorePatterns` lists only what git keeps but nobody
+# formats by hand.
+[fmt]
+useTabs = true
+printWidth = 120
+ignorePatterns = [
+	# The repository's docs/ only
+	"/docs/",
+	".agents/",
+	".claude/",
+	"AGENTS.md",
+	"README.md",
+	# Never edited once applied: the migrator matches them by folder name
+	"apps/back/migrations/",
+]
+
+# Tailwind's classes sorted as its own order has them, read from the theme;
+# in class attributes only, as Prettier's plugin did: shadcn's components keep
+# their `tv()` strings as the registry writes them.
+[fmt.sortTailwindcss]
+stylesheet = "./apps/web/src/routes/layout.css"
+functions = []
+
+[[fmt.overrides]]
+files = ["*.json", "*.jsonc", "*.yml", "*.yaml", "*.md"]
+options = { useTabs = false }

@@ -34,7 +34,7 @@
 				provider,
 				// The canonical origin: Better Auth rejects a callbackURL outside
 				// `trustedOrigins`, which the page's own origin need not be (a
-				// *.vercel.app deployment URL, say).
+				// workers.dev URL, say).
 				callbackURL: new URL(resolve("/(protected)/account"), page.data.siteUrl).href,
 				// Back to this page rather than the API's bare error page.
 				errorCallbackURL: new URL(page.url.pathname, page.data.siteUrl).href,

@@ -1,0 +1,134 @@
+name: CI
+
+# Everything a change must pass, in one job named Test: the check main's
+# ruleset requires, .github/scripts/tested.sh looks up and deploy.yml waits on.
+# Runs on every pull request into main, and from deploy.yml for a commit on
+# main that no pull request tested as it is. A PR stacked on another branch
+# runs nothing until it targets main. A docs-only change (docs/, Markdown at
+# the root, LICENSE) passes without running anything: no task reads those
+# files. Needs no secrets or variables, so it runs the same in the template.
+on:
+  pull_request:
+    branches: [main]
+  workflow_call:
+
+permissions:
+  contents: read
+  # Turborepo's remote cache (.github/actions/setup).
+  id-token: write
+
+concurrency:
+  # A newer push to a pull request replaces its run; a commit on main runs to the end.
+  group: ci-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  TURBO_TELEMETRY_DISABLED: 1
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    services:
+      # The user, password and port apps/back/test/env.ts defaults to, so the
+      # API tests find it with nothing set; they make databases of their own
+      # (m4_test_<worker>) next to this one.
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: m4
+          POSTGRES_PASSWORD: m4
+          POSTGRES_DB: m4
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U m4"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # For drizzle-kit and the smoke test, never the API tests, which assign
+      # their own (apps/back/test/setup.ts).
+      DATABASE_URL: postgresql://m4:m4@localhost:5432/m4
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The applied-migration and docs-only checks compare with main's history.
+          fetch-depth: 0
+      - name: What this change is compared with
+        id: base
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: .github/scripts/compared-with.sh
+      # A throwaway database: no fsync, so the DROP DATABASEs the API tests
+      # run per worker cannot stall each other on the runner's disk.
+      - name: Postgres without durability
+        if: steps.base.outputs.docs_only != 'true'
+        run: |
+          docker exec ${{ job.services.postgres.id }} psql -U m4 -d m4 \
+            -c "alter system set fsync = off" \
+            -c "alter system set synchronous_commit = off" \
+            -c "alter system set full_page_writes = off" \
+            -c "select pg_reload_conf()"
+      - uses: ./.github/actions/setup
+        if: steps.base.outputs.docs_only != 'true'
+        with:
+          turbo-team: ${{ vars.TURBO_TEAM }}
+      # Production's build values, as the Deploy job builds with them.
+      - name: Build values
+        if: steps.base.outputs.docs_only != 'true'
+        run: grep -E '^[A-Z_]+=' .github/build.env >> "$GITHUB_ENV"
+
+      - name: Format
+        if: steps.base.outputs.docs_only != 'true'
+        run: bun run format
+      - name: One copy of each shared package
+        if: steps.base.outputs.docs_only != 'true'
+        run: .github/scripts/single-copies.sh
+      - name: Applied migrations are unchanged
+        if: steps.base.outputs.docs_only != 'true'
+        run: .github/scripts/migrations-unchanged.sh "${{ steps.base.outputs.base }}"
+      # The API tests run against the Postgres service, the web app's in
+      # Node. Tasks whose inputs a cached run already saw replay from the
+      # remote cache.
+      - name: Lint, type-check, test and build
+        if: steps.base.outputs.docs_only != 'true'
+        run: bunx turbo run lint check-types test build
+
+      - name: Migration folders are consistent
+        if: steps.base.outputs.docs_only != 'true'
+        working-directory: apps/back
+        run: bunx drizzle-kit check
+      - name: Every schema change has a migration
+        if: steps.base.outputs.docs_only != 'true'
+        working-directory: apps/back
+        run: |
+          # Changes and no changes both exit 0 (an ambiguous rename exits 2),
+          # so read the status instead.
+          out=$(bunx drizzle-kit generate --explain --output json) || true
+          status=$(jq -r '.status // "unknown"' <<<"$out" 2>/dev/null) || status=unparseable
+          if [ "$status" != no_changes ]; then
+            echo "::error::src/db/schema.ts has changes no migration covers (drizzle-kit: $status). Run \`bun run db:generate --name <change>\` and commit the new folder."
+            printf '%s\n' "$out"
+            exit 1
+          fi
+      # drizzle-kit's migrator, the one deploy.yml runs against production.
+      - name: Apply migrations to a fresh Postgres 18
+        if: steps.base.outputs.docs_only != 'true'
+        working-directory: apps/back
+        run: bunx drizzle-kit migrate
+      # The binary the build step compiled, in production mode, from the outside.
+      - name: Smoke-test the compiled API
+        if: steps.base.outputs.docs_only != 'true'
+        working-directory: apps/back
+        env:
+          # Better Auth reads NODE_ENV at runtime: Secure cookies, its
+          # production checks. It never calls its own URL, so .invalid hosts
+          # are fine.
+          NODE_ENV: production
+          BETTER_AUTH_SECRET: ci-only-secret-that-is-at-least-32-chars
+          BETTER_AUTH_URL: https://api.m4.invalid
+          WEB_URL: https://app.m4.invalid
+          COOKIE_DOMAIN: m4.invalid
+          PORT: 3000
+        run: scripts/smoke.sh

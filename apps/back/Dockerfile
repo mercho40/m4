@@ -7,15 +7,19 @@
 #
 # Pinned to the same Bun the repo declares in packageManager, so the image and
 # local builds agree.
-FROM oven/bun:1.4.2 AS build
+FROM oven/bun:1.4.4 AS build
 
 WORKDIR /app
 
 # Manifests first, so the dependency layer is cached independently of source
-# changes. Every workspace manifest is needed for Bun to resolve the lockfile.
-COPY package.json bun.lock ./
+# changes. Every workspace manifest is needed for Bun to resolve the lockfile
+# (--frozen-lockfile refuses one that no longer matches the workspaces), and
+# bunfig.toml carries the install settings (the isolated linker).
+COPY package.json bun.lock bunfig.toml ./
 COPY apps/back/package.json apps/back/
 COPY apps/web/package.json apps/web/
+COPY packages/eslint-config/package.json packages/eslint-config/
+COPY e2e/package.json e2e/
 
 # Only this app's runtime dependencies: `bun build` bundles from them alone, so
 # the web app's toolchain and drizzle-kit/pg/typescript are dead weight here.

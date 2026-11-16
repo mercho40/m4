@@ -1,0 +1,90 @@
+name: Rollback
+
+# Roll production back to an earlier version. Run with an empty version first
+# to list the candidates. Haloy keeps the last 6 API deployments; Workers keep
+# the last 100 versions. Database changes are not undone:
+# migrations are expand-only, so an older API keeps working on the newer
+# schema.
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: What to roll back
+        type: choice
+        options: [back, web]
+        required: true
+      version:
+        description: Haloy deployment ID or Worker version ID. Leave empty to list candidates.
+        required: false
+
+permissions:
+  contents: read
+
+# The Deploy job's group (deploy.yml), so a rollback never interleaves with a
+# deploy.
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  rollback:
+    name: Rollback ${{ inputs.target }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      VERSION: ${{ inputs.version }}
+    steps:
+      # A clean checkout: haloy reads .env files from the working directory, and
+      # a laptop's could ship local values to production.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # The repository's wrangler, for the web app's rollback.
+      - if: inputs.target == 'web'
+        uses: ./.github/actions/setup
+
+      - if: inputs.target == 'back'
+        name: Roll back the API
+        env:
+          HALOY_TOKEN: ${{ secrets.HALOY_API_TOKEN }}
+          # A rollback re-reads haloy.yaml's `from.env` secrets.
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
+          GITHUB_CLIENT_SECRET: ${{ secrets.GITHUB_CLIENT_SECRET }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+        run: |
+          if [ -z "$HALOY_TOKEN" ]; then
+            echo "::notice::Nothing to roll back: the HALOY_API_TOKEN secret is not set, so the API was never deployed from here."
+            exit 0
+          fi
+          npm install --global haloy@0.1.0-beta.73
+          haloy server add "$(sed -n 's/^server: *//p' apps/back/haloy.yaml)" "$HALOY_TOKEN" --force
+          if [ -z "$VERSION" ]; then
+            haloy rollback-targets -c apps/back/haloy.yaml
+            exit 0
+          fi
+          set -o pipefail
+          haloy rollback -c apps/back/haloy.yaml "$VERSION" 2>&1 | tee rollback.log
+          # Like `haloy deploy`, a failed rollback still exits 0.
+          if grep -qiE "deployment failed|failed health check" rollback.log || ! grep -qi "health check passed" rollback.log; then
+            echo "::error::haloy did not report a healthy rollback."
+            exit 1
+          fi
+
+      # A version keeps the secrets and vars it was deployed with, so this
+      # brings back that deploy's whole Worker, not only its code. The next
+      # Deploy replaces it as usual.
+      - if: inputs.target == 'web'
+        name: Roll back the web app
+        working-directory: apps/web
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+            echo "::notice::Nothing to roll back: the CLOUDFLARE_API_TOKEN secret is not set, so the web app was never deployed from here."
+            exit 0
+          fi
+          if [ -z "$VERSION" ]; then
+            bunx wrangler deployments list
+            exit 0
+          fi
+          bunx wrangler rollback "$VERSION" --message "Rollback by $GITHUB_ACTOR (run $GITHUB_RUN_ID)" --yes

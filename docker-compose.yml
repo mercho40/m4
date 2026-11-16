@@ -1,0 +1,25 @@
+# Local development database.
+#   docker compose up -d
+# The test databases (m4_test_1..N for `bun run test`, m4_e2e for `bun run
+# e2e`) are created on this server by the suites themselves.
+services:
+  postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: m4
+      POSTGRES_PASSWORD: m4
+      POSTGRES_DB: m4
+    ports:
+      - "5432:5432"
+    volumes:
+      # Postgres 18's image keeps its data in a versioned directory below this
+      # one (/var/lib/postgresql/18/docker), so a major upgrade can sit beside it.
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U m4 -d m4"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres-data:

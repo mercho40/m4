@@ -20,8 +20,9 @@ coverage
 # Turbo
 .turbo
 
-# Vercel
-.vercel
+# Wrangler's local state, and its local secrets file if anyone makes one
+.wrangler/
+.dev.vars*
 
 # Build Outputs
 build
@@ -30,6 +31,10 @@ dist
 # SvelteKit's conventional `src/lib/server/` directory, silently excluding
 # server-only modules that tracked routes import.
 /apps/back/server
+/apps/back/server.map
+# svelte-check --tsgo writes its Svelte-to-TS output here where a package has
+# no .svelte-kit
+.svelte-check
 
 
 # Debug
@@ -52,3 +57,11 @@ skills-lock.json
 # Local tooling artifacts
 apps/web/.playwright-cli/
 *.swp
+
+# Playwright (e2e/): reports, traces and the servers' logs
+playwright-report/
+test-results/
+e2e/.logs/
+
+# Rendered from haloy.preview.yaml by the preview workflows
+apps/back/haloy.pr.yaml

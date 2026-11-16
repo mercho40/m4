@@ -1,0 +1,6 @@
+# `bun test` reads only the bunfig.toml in its working directory, so this
+# applies when tests run from apps/back (the `test` script, Turborepo); the
+# root bunfig.toml preloads the same file for a run from there. The root one
+# still governs installs.
+[test]
+preload = ["./test/setup.ts"]

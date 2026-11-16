@@ -1,0 +1,42 @@
+{
+	"$schema": "./node_modules/wrangler/config-schema.json",
+	"name": "m4-web",
+	// No newer than the installed wrangler's workerd supports (its version is
+	// the date: workerd 1.20261110.x).
+	"compatibility_date": "2026-11-10",
+	// AsyncLocalStorage, which SvelteKit needs; not the rest of Node's APIs.
+	"compatibility_flags": ["nodejs_als"],
+	"main": ".svelte-kit/cloudflare/_worker.js",
+	"assets": {
+		"binding": "ASSETS",
+		"directory": ".svelte-kit/cloudflare",
+	},
+	// Next to the API and its database in São Paulo (AWS sa-east-1): server-side
+	// calls to the API, such as session revalidation in hooks.server.ts, would
+	// otherwise cross the continent from wherever the visitor is. Static assets
+	// are still served from the edge nearest the visitor.
+	"placement": { "region": "aws:sa-east-1" },
+	// Template values: the Deploy job refuses to run while this file names
+	// example.com. Production's host must be PUBLIC_SITE_URL's in
+	// .github/build.env, and a subdomain of the API's parent domain (AGENTS.md,
+	// "Deployment").
+	"routes": [
+		{ "pattern": "app.example.com", "custom_domain": true },
+		// PR previews only (pr-<n>.app.<PREVIEW_DOMAIN>); never serves production
+		// traffic. A parent domain of its own, so production's cookies never
+		// reach preview code; pr.yml checks it matches vars.PREVIEW_DOMAIN. It
+		// exists only once a deploy from main has applied it.
+		{
+			"pattern": "app.example.net",
+			"custom_domain": true,
+			"previews_enabled": true,
+			"enabled": false,
+		},
+	],
+	// Required by `wrangler preview`. Previews never inherit production's vars or
+	// secrets: pr.yml passes their own.
+	"previews": {},
+	"workers_dev": true,
+	"preview_urls": true,
+	"observability": { "enabled": true },
+}

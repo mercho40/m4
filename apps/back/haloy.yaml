@@ -1,0 +1,76 @@
+# Haloy deployment for the API.
+#
+#   server  - haloyd's control-plane domain, where the haloy CLI connects.
+#   domains - the public domain the server's proxy serves the API on (TLS by Haloy).
+#
+# Deploy:   haloy deploy -c apps/back/haloy.yaml   (CI does this on main)
+# Validate: haloy validate-config -c apps/back/haloy.yaml
+#
+# Every example.com below is the template's placeholder: replace them with
+# your own before the first deploy (the Deploy job refuses to ship them).
+# Haloy does not expand variables in `server` or `domains`, so they live here.
+#
+# Paths resolve against this file: `context` is the repo root because the
+# workspace install needs the root manifest and lockfile. haloy builds the
+# image with the local Docker and uploads it to haloyd; no registry is
+# involved.
+#
+# Secrets come from the deploy environment through `from.env` and are never
+# committed. haloy treats an unset OR empty variable as missing and aborts, so
+# every one listed here must exist as a GitHub secret and be passed by both
+# deploy.yml's Deploy job and rollback.yml (a rollback re-reads this file).
+name: m4-back
+server: haloy.example.com
+
+image:
+  repository: m4-back
+  build_config:
+    context: ../..
+    dockerfile: apps/back/Dockerfile
+    platform: linux/amd64
+
+domains:
+  - domain: api.example.com
+
+# The image sets PORT=8080.
+port: "8080"
+health_check_path: /health
+
+env:
+  - name: NODE_ENV
+    value: production
+  # This file's domain: Better Auth builds OAuth callback and email URLs from it.
+  - name: BETTER_AUTH_URL
+    value: https://api.example.com
+  # The web app's origin, the only one CORS and Better Auth trust. Must be
+  # PUBLIC_SITE_URL in .github/build.env.
+  - name: WEB_URL
+    value: https://app.example.com
+  # The parent of both domains above, so the session cookie the API sets
+  # reaches the web app (AGENTS.md, "Deployment").
+  - name: COOKIE_DOMAIN
+    value: example.com
+
+  # Social sign-in, optional: each provider registers only when both of its
+  # values are set. To turn one on, uncomment its pair and add the secret as
+  # a GitHub secret; deploy.yml and rollback.yml already pass
+  # GITHUB_CLIENT_SECRET and GOOGLE_CLIENT_SECRET. The provider's redirect URI
+  # is https://api.example.com/api/auth/callback/<github|google>.
+  # - name: GITHUB_CLIENT_ID
+  #   value: <client id>
+  # - name: GITHUB_CLIENT_SECRET
+  #   from:
+  #     env: GITHUB_CLIENT_SECRET
+  # - name: GOOGLE_CLIENT_ID
+  #   value: <client id>
+  # - name: GOOGLE_CLIENT_SECRET
+  #   from:
+  #     env: GOOGLE_CLIENT_SECRET
+
+  - name: DATABASE_URL
+    from:
+      env: DATABASE_URL
+  # Must match the web app's BETTER_AUTH_SECRET (the Deploy job sends both the same secret).
+  - name: BETTER_AUTH_SECRET
+    from:
+      env: BETTER_AUTH_SECRET

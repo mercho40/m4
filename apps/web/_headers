@@ -1,0 +1,13 @@
+# Only the production host belongs in search results: the workers.dev URLs
+# duplicate it, and PR previews are temporary (Cloudflare marks workers.dev
+# previews noindex itself, but not custom-domain ones). These rules cover static
+# assets and prerendered files (robots.txt, /login, /signup); rendered pages
+# are the Worker's own responses, which this file does not reach.
+# adapter-cloudflare merges this file (it must sit in the app root) with the
+# cache headers it generates for /_app/. The preview host is a template value,
+# the one in wrangler.jsonc's preview route.
+https://:worker.:account.workers.dev/*
+  X-Robots-Tag: noindex
+
+https://:preview.app.example.net/*
+  X-Robots-Tag: noindex

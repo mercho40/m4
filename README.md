@@ -31,10 +31,11 @@ The `BETTER_AUTH_SECRET` must match in both apps. Generate one with:
 openssl rand -base64 32
 ```
 
-Run database migrations:
+Start the local database (Postgres 18) and run migrations:
 
 ```bash
-cd apps/back && bunx drizzle-kit migrate
+docker compose up -d
+bun run db:migrate
 ```
 
 ## Development
@@ -52,17 +53,22 @@ This starts both apps:
 | Command | Description |
 |---------|-------------|
 | `bun run dev` | Start all apps in development |
-| `bun run build` | Build all apps |
+| `bun run check` | Format check, then lint, type-check and test what changed since `origin/main` |
+| `bun run lint` | ESLint across the monorepo |
 | `bun run check-types` | Type check across monorepo |
-| `bun run start` | Build, then run the API's compiled binary locally (the web app deploys to Vercel) |
+| `bun run test` | API tests on real Postgres, web tests with Vitest |
+| `bun run e2e` | Playwright end-to-end tests (own servers and database) |
+| `bun run format:fix` | Format with `bun fmt` |
+| `bun run build` | Build all apps |
+| `bun run start` | Build, then run the API's compiled binary locally |
+| `bun run db:generate` | Generate a migration from schema changes |
+| `bun run db:migrate` | Apply migrations |
+| `bun run db:studio` | Open Drizzle Studio |
 
-### Backend (apps/back)
+## Deployment
 
-| Command | Description |
-|---------|-------------|
-| `bunx drizzle-kit generate` | Generate migrations |
-| `bunx drizzle-kit migrate` | Apply migrations |
-| `bunx drizzle-kit studio` | Open Drizzle Studio |
+Every push to `main` deploys through GitHub Actions: migrations, the API with Haloy, then the web app on Cloudflare Workers. A fresh
+copy of the template skips these steps until configured; see [`docs/operations.md`](docs/operations.md).
 
 ## Project Structure
 
@@ -70,7 +76,8 @@ This starts both apps:
 apps/
   back/           Elysia API server (port 3000)
     src/
-      index.ts        Server entry, routes, auth macro
+      app.ts          The app: routes, auth macro, `type App`
+      index.ts        Server entry: listens, drains on SIGTERM
       lib/auth.ts     Better Auth configuration
       db/schema.ts    Drizzle database schema
       db/relations.ts Drizzle relations (for Better Auth joins)
@@ -87,4 +94,8 @@ apps/
         login/            Login page (prerendered)
         signup/           Signup page (prerendered)
         (protected)/account/  Signed-in view
+packages/
+  eslint-config/  Shared ESLint config
+e2e/              Playwright end-to-end tests
+docs/             Decisions and operations
 ```

@@ -42,6 +42,7 @@
 		one ships literally. The whole element goes through `{@html}` instead; the
 		`<` escaping above keeps the JSON from closing it early.
 	-->
+	<!-- eslint-disable-next-line svelte/no-at-html-tags -- our own JSON, escaped above -->
 	{@html `<script type="application/ld+json">${structuredDataJson}</` + `script>`}
 </svelte:head>
 
@@ -76,7 +77,7 @@
 		to a reader rather than only to something parsing robots.txt.
 	-->
 	<p class="text-muted-foreground text-sm">
-		Agents: read <a href="/llms.txt" class="text-foreground underline underline-offset-4">/llms.txt</a>, then sign up
+		Agents: read <a href={resolve("/llms.txt")} class="text-foreground underline underline-offset-4">/llms.txt</a>, then sign up
 		above.
 	</p>
 

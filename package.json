@@ -5,17 +5,63 @@
     "build": "turbo run build",
     "dev": "turbo run dev",
     "check-types": "turbo run check-types",
-    "start": "turbo run start"
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "format": "bun fmt --check",
+    "format:fix": "bun fmt",
+    "check": "bun fmt --check && TURBO_SCM_BASE=origin/main turbo run lint check-types test --affected",
+    "start": "turbo run start",
+    "db:migrate": "bun run --cwd apps/back db:migrate",
+    "db:generate": "bun run --cwd apps/back db:generate",
+    "db:studio": "bun run --cwd apps/back db:studio",
+    "e2e": "bun run --cwd e2e e2e"
   },
   "devDependencies": {
-    "turbo": "^2.11.7"
+    "turbo": "^2.11.11"
   },
   "engines": {
     "node": ">=22.17"
   },
-  "packageManager": "bun@1.4.2",
-  "workspaces": [
-    "apps/*",
-    "packages/*"
-  ]
+  "packageManager": "bun@1.4.4",
+  "trustedDependencies": [],
+  "workspaces": {
+    "packages": [
+      "apps/*",
+      "packages/*",
+      "e2e"
+    ],
+    "catalog": {
+      "@better-auth/drizzle-adapter": "^1.7.25",
+      "@elysiajs/cors": "^1.4.3",
+      "@elysiajs/eden": "^1.4.9",
+      "@eslint/js": "^10.0.1",
+      "@lucide/svelte": "^1.73.0",
+      "@playwright/test": "1.65.0",
+      "@sveltejs/adapter-cloudflare": "^8.0.2",
+      "@sveltejs/kit": "^3.2.0",
+      "@sveltejs/vite-plugin-svelte": "^7.3.1",
+      "@tailwindcss/vite": "^4.3.5",
+      "@typescript/native": "npm:typescript@7",
+      "better-auth": "^1.7.25",
+      "bits-ui": "^2.21.0",
+      "bun-types": "^1.4.4",
+      "clsx": "^2.1.1",
+      "drizzle-kit": "1.0.0-rc.5",
+      "drizzle-orm": "1.0.0-rc.5",
+      "elysia": "^1.4.32",
+      "eslint": "^10.14.0",
+      "eslint-plugin-svelte": "^3.24.1",
+      "globals": "^17.14.0",
+      "pg": "^8.23.1",
+      "svelte": "^5.57.3",
+      "svelte-check": "^4.7.8",
+      "tailwind-variants": "^4.0.2",
+      "tailwindcss": "^4.3.5",
+      "typescript": "~6.0.3",
+      "typescript-eslint": "^8.72.2",
+      "vite": "^8.3.8",
+      "vitest": "5.1.0",
+      "wrangler": "^4.158.0"
+    }
+  }
 }

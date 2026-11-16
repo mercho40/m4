@@ -14,20 +14,37 @@ node_modules
 **/node_modules
 apps/web/.svelte-kit
 apps/web/build
-apps/web/.vercel
+apps/web/.wrangler
 apps/back/server
 apps/back/server.map
 .turbo
 **/.turbo
 
-# Frontend — deployed to Vercel, not part of this image
+# Frontend — deployed to Cloudflare Workers, not part of this image
 apps/web/src
 apps/web/static
 apps/web/vite.config.ts
 apps/web/components.json
+apps/web/wrangler.jsonc
+apps/web/_headers
+
+# Tests, lint and local tooling: the image needs only the workspaces'
+# package.json files (the Dockerfile copies those), never their contents.
+apps/back/test
+apps/back/**/*.test.ts
+apps/back/eslint.config.js
+apps/back/bunfig.toml
+e2e/*
+!e2e/package.json
+packages/eslint-config/*
+!packages/eslint-config/package.json
+scripts
+t3.json
+docker-compose.yml
 
 # Version control and local tooling
 .git
+.github
 .gitignore
 apps/web/.playwright-cli
 

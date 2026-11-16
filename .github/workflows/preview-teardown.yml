@@ -1,0 +1,108 @@
+name: Preview teardown
+
+# Removes one PR's preview: its Worker Preview, its Haloy app
+# and image, and its Neon branch. Called by pr.yml on close or unlabel, by
+# preview-sweep.yml, or by hand. Every step tolerates parts that are already
+# gone, and skips a part whose service is not configured.
+on:
+  workflow_call:
+    inputs:
+      pr:
+        type: number
+        required: true
+  workflow_dispatch:
+    inputs:
+      pr:
+        type: number
+        required: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+# By hand, wait for any preview run of the same PR. Called from another
+# workflow, the caller holds that group already (sharing it would deadlock).
+concurrency:
+  group: ${{ github.event_name == 'workflow_dispatch' && format('preview-{0}', inputs.pr) || format('preview-teardown-{0}-{1}', github.run_id, inputs.pr) }}
+  cancel-in-progress: false
+
+jobs:
+  teardown:
+    name: Tear down pr-${{ inputs.pr }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      PR: ${{ inputs.pr }}
+      PREVIEW_DOMAIN: ${{ vars.PREVIEW_DOMAIN }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+      HALOY_TOKEN: ${{ secrets.HALOY_API_TOKEN }}
+      NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+      NEON_PROJECT_ID: ${{ vars.NEON_PROJECT_ID }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - if: env.CLOUDFLARE_API_TOKEN != ''
+        uses: ./.github/actions/setup
+      - name: Delete the Worker Preview
+        working-directory: apps/web
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+            echo "::notice::Worker Previews are not configured; nothing to remove there."
+            exit 0
+          fi
+          bunx wrangler preview delete --name "pr-$PR" -y || echo "no Worker Preview pr-$PR (or already deleted)"
+      - name: Stop the preview API and drop its images
+        env:
+          # haloy resolves every from.env value even to stop an app: every one
+          # haloy.preview.yaml lists needs a (dummy) value here, or nothing stops.
+          PREVIEW_DATABASE_URL: unused
+          PREVIEW_BETTER_AUTH_SECRET: unused
+        run: |
+          if [ -z "$HALOY_TOKEN" ] || [ -z "$PREVIEW_DOMAIN" ]; then
+            echo "::notice::Haloy previews are not configured; nothing to stop there."
+            exit 0
+          fi
+          npm install --global haloy@0.1.0-beta.73
+          # The domain is not checked here as pr.yml does: stopping goes by name.
+          sed -e "s/__PR__/$PR/g" -e "s/__PREVIEW_DOMAIN__/$PREVIEW_DOMAIN/g" \
+            apps/back/haloy.preview.yaml > apps/back/haloy.pr.yaml
+          grep -qx "name: m4-back-pr-$PR" apps/back/haloy.pr.yaml
+          haloy server add "$(sed -n 's/^server: *//p' apps/back/haloy.pr.yaml)" "$HALOY_TOKEN" --force
+          # A from.env entry this step does not set makes every haloy command
+          # below fail before it reaches the server; fail here, loudly, rather
+          # than leave the preview API running behind the `|| true`s.
+          haloy validate-config -c apps/back/haloy.pr.yaml
+          # Asynchronous on the server; a missing app is a no-op, and any other
+          # refusal is reported but does not stop the rest of the teardown.
+          rc=0
+          out=$(haloy stop -c apps/back/haloy.pr.yaml --remove-containers 2>&1) || rc=$?
+          printf '%s\n' "$out"
+          if grep -qi "unable to resolve" <<<"$out"; then
+            echo "::error::haloy could not resolve the preview config's environment; the preview API was not stopped."
+            exit 1
+          fi
+          [ "$rc" = 0 ] || echo "::warning::haloy stop exited $rc (fine if the app was already gone)."
+          sleep 30
+          # Best effort: an image left behind costs disk, not memory.
+          haloy prune-images -c apps/back/haloy.pr.yaml --keep 0 --yes || true
+      - name: Delete the Neon branch (its expiry may already have removed it)
+        run: |
+          if [ -z "$NEON_API_KEY" ] || [ -z "$NEON_PROJECT_ID" ]; then
+            echo "::notice::Neon is not configured; no branch to delete."
+            exit 0
+          fi
+          npm install --global --ignore-scripts neon@8.4.5
+          if neon branches get "preview/pr-$PR" --project-id "$NEON_PROJECT_ID" >/dev/null 2>&1; then
+            neon branches delete "preview/pr-$PR" --project-id "$NEON_PROJECT_ID"
+          fi
+      - name: Mark the preview comment as torn down
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ids=$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" --paginate \
+                  --jq '.[] | select(.body | startswith("<!-- m4-preview -->")) | .id')
+          if [ -n "$ids" ]; then
+            gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/${ids%%$'\n'*}" \
+              -f body=$'<!-- m4-preview -->\n### Preview torn down\nAdd the `preview` label to deploy it again.' >/dev/null
+          fi
