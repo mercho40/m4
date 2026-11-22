@@ -43,7 +43,7 @@ env:
   - name: BETTER_AUTH_URL
     value: https://api.example.com
   # The web app's origin, the only one CORS and Better Auth trust. Must be
-  # PUBLIC_SITE_URL in .github/build.env.
+  # the PUBLIC_SITE_URL repository variable.
   - name: WEB_URL
     value: https://app.example.com
   # The parent of both domains above, so the session cookie the API sets

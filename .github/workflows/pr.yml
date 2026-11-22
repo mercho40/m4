@@ -255,19 +255,15 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup
       # Built against this PR's API and uploaded as Worker Preview pr-<n>,
-      # served on the preview-only custom domain in wrangler.jsonc, where the
-      # preview API's cookie reaches it. Its runtime values are its own, never
+      # served on the preview-only custom domain app.<PREVIEW_DOMAIN>, where the
+      # preview API's cookie reaches it. Deploy adds that domain to the Worker
+      # (.github/scripts/web-deploy-config.ts), so it exists only once a deploy
+      # from main has run with vars.PREVIEW_DOMAIN set. Its runtime values are its own, never
       # production's: Previews do not inherit the Worker's vars or secrets.
       - name: Build it and upload it as Preview pr-${{ github.event.pull_request.number }}
         run: |
           set -euo pipefail
           host="pr-$PR.app.$PREVIEW_DOMAIN"
-          # The URL only exists if the preview route names this domain (and a
-          # deploy from main has applied it).
-          if ! grep -qF "\"app.$PREVIEW_DOMAIN\"" apps/web/wrangler.jsonc; then
-            echo "::error::apps/web/wrangler.jsonc's preview route is not app.$PREVIEW_DOMAIN (vars.PREVIEW_DOMAIN)."
-            exit 1
-          fi
           export PUBLIC_API_URL="https://pr-$PR.api.$PREVIEW_DOMAIN"
           export PUBLIC_SITE_URL="https://$host"
           bunx turbo run build --filter=@repo/web
@@ -279,7 +275,7 @@ jobs:
           # Right after the preview route's first deploy, its wildcard
           # certificate can take minutes to reach the edge.
           curl --retry 30 --retry-delay 10 --retry-all-errors -fsS -o /dev/null "https://$host/" ||
-            { echo "::error::https://$host is not serving"; exit 1; }
+            { echo "::error::https://$host is not serving. Has Deploy deployed the web app since vars.PREVIEW_DOMAIN was set? Run it by hand."; exit 1; }
 
   comment:
     name: Preview links

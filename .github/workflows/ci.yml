@@ -6,7 +6,8 @@ name: CI
 # main that no pull request tested as it is. A PR stacked on another branch
 # runs nothing until it targets main. A docs-only change (docs/, Markdown at
 # the root, LICENSE) passes without running anything: no task reads those
-# files. Needs no secrets or variables, so it runs the same in the template.
+# files. Needs no secrets, and its variables are optional, so it runs the same
+# in the template.
 on:
   pull_request:
     branches: [main]
@@ -84,19 +85,19 @@ jobs:
         if: steps.base.outputs.docs_only != 'true'
         run: .github/scripts/migrations-unchanged.sh "${{ steps.base.outputs.base }}"
       # The API tests run against the Postgres service, the web app's in
-      # Node. Before the build values: the web tests read apps/web/.env.test,
-      # and an exported PUBLIC_* would win over it. Tasks whose inputs a
+      # Node, on apps/web/.env.test, which an exported PUBLIC_* would override:
+      # so the build values below are this step's alone. Tasks whose inputs a
       # cached run already saw replay from the remote cache.
       - name: Test
         if: steps.base.outputs.docs_only != 'true'
         run: bunx turbo run test
-
-      # Production's build values, as the Deploy job builds with them.
-      - name: Build values
-        if: steps.base.outputs.docs_only != 'true'
-        run: grep -E '^[A-Z_]+=' .github/build.env >> "$GITHUB_ENV"
+      # Production's build values, as the Deploy job builds with them; the
+      # template's placeholders until they are set.
       - name: Lint, type-check and build
         if: steps.base.outputs.docs_only != 'true'
+        env:
+          PUBLIC_API_URL: ${{ vars.PUBLIC_API_URL || 'https://api.example.com' }}
+          PUBLIC_SITE_URL: ${{ vars.PUBLIC_SITE_URL || 'https://app.example.com' }}
         run: bunx turbo run lint check-types build
 
       - name: Migration folders are consistent

@@ -3,6 +3,8 @@ node_modules
 # Output
 .output
 .wrangler
+# Deploy's generated config (.github/scripts/web-deploy-config.ts)
+wrangler.deploy.json
 /.svelte-kit
 /build
 
