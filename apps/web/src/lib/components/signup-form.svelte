@@ -53,12 +53,7 @@
 			`method="POST"` only matters before hydration: a submit then posts to this
 			page instead of falling back to GET, which would put the password in the URL.
 		-->
-		<form
-			method="POST"
-			{onsubmit}
-			aria-busy={submitting}
-			aria-describedby={message ? `signup-error-${id}` : undefined}
-		>
+		<form method="POST" {onsubmit} aria-busy={submitting} aria-describedby={message ? `signup-error-${id}` : undefined}>
 			<Field.Group>
 				<Field.Field>
 					<Field.Label for="name-{id}">Full Name</Field.Label>
@@ -96,9 +91,7 @@
 						minlength={8}
 						required
 						aria-invalid={message ? "true" : undefined}
-						aria-describedby={message
-							? `password-description-${id} signup-error-${id}`
-							: `password-description-${id}`}
+						aria-describedby={message ? `password-description-${id} signup-error-${id}` : `password-description-${id}`}
 					/>
 					<Field.Description id="password-description-{id}">Must be at least 8 characters long.</Field.Description>
 				</Field.Field>

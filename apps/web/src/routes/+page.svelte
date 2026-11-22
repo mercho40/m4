@@ -49,11 +49,10 @@
 <main id="main-content" class="mx-auto flex min-h-svh w-full max-w-2xl flex-col justify-center gap-10 px-6 py-16">
 	<div class="space-y-4">
 		<h1 class="text-5xl font-bold tracking-tight md:text-6xl">
-			M4<span class="text-muted-foreground ml-1 align-middle font-mono text-base font-normal md:text-lg"
-				>[starter]</span
+			M4<span class="ml-1 align-middle font-mono text-base font-normal text-muted-foreground md:text-lg">[starter]</span
 			>
 		</h1>
-		<p class="text-muted-foreground text-lg">
+		<p class="text-lg text-muted-foreground">
 			{description}
 		</p>
 	</div>
@@ -63,7 +62,7 @@
 		action on the right. It gives the call to action enough weight to balance
 		the wordmark, which two bare buttons did not.
 	-->
-	<div class="border-border flex flex-wrap items-center justify-between gap-4 rounded-lg border px-5 py-4">
+	<div class="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-border px-5 py-4">
 		<p class="font-mono text-sm">Sign in to the demo</p>
 		<div class="flex gap-2">
 			<Button href={resolve("/login")} size="lg">Log in</Button>
@@ -76,19 +75,15 @@
 		/llms.txt is already served and prerendered; this makes it discoverable
 		to a reader rather than only to something parsing robots.txt.
 	-->
-	<p class="text-muted-foreground text-sm">
-		Agents: read <a href={resolve("/llms.txt")} class="text-foreground underline underline-offset-4">/llms.txt</a>, then sign up
-		above.
+	<p class="text-sm text-muted-foreground">
+		Agents: read <a href={resolve("/llms.txt")} class="text-foreground underline underline-offset-4">/llms.txt</a>, then
+		sign up above.
 	</p>
 
 	<div class="space-y-4">
 		<hr class="border-border" />
-		<p class="text-muted-foreground text-xs">
-			<a
-				href="https://github.com/mercho40/m4"
-				class="underline underline-offset-4"
-				rel="noreferrer">Source</a
-			>
+		<p class="text-xs text-muted-foreground">
+			<a href="https://github.com/mercho40/m4" class="underline underline-offset-4" rel="noreferrer">Source</a>
 		</p>
 	</div>
 </main>
