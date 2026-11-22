@@ -74,11 +74,6 @@ jobs:
         if: steps.base.outputs.docs_only != 'true'
         with:
           turbo-team: ${{ vars.TURBO_TEAM }}
-      # Production's build values, as the Deploy job builds with them.
-      - name: Build values
-        if: steps.base.outputs.docs_only != 'true'
-        run: grep -E '^[A-Z_]+=' .github/build.env >> "$GITHUB_ENV"
-
       - name: Format
         if: steps.base.outputs.docs_only != 'true'
         run: bun run format
@@ -89,11 +84,20 @@ jobs:
         if: steps.base.outputs.docs_only != 'true'
         run: .github/scripts/migrations-unchanged.sh "${{ steps.base.outputs.base }}"
       # The API tests run against the Postgres service, the web app's in
-      # Node. Tasks whose inputs a cached run already saw replay from the
-      # remote cache.
-      - name: Lint, type-check, test and build
+      # Node. Before the build values: the web tests read apps/web/.env.test,
+      # and an exported PUBLIC_* would win over it. Tasks whose inputs a
+      # cached run already saw replay from the remote cache.
+      - name: Test
         if: steps.base.outputs.docs_only != 'true'
-        run: bunx turbo run lint check-types test build
+        run: bunx turbo run test
+
+      # Production's build values, as the Deploy job builds with them.
+      - name: Build values
+        if: steps.base.outputs.docs_only != 'true'
+        run: grep -E '^[A-Z_]+=' .github/build.env >> "$GITHUB_ENV"
+      - name: Lint, type-check and build
+        if: steps.base.outputs.docs_only != 'true'
+        run: bunx turbo run lint check-types build
 
       - name: Migration folders are consistent
         if: steps.base.outputs.docs_only != 'true'
