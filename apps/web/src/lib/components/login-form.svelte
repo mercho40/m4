@@ -44,12 +44,7 @@
 			`method="POST"` only matters before hydration: a submit then posts to this
 			page instead of falling back to GET, which would put the password in the URL.
 		-->
-		<form
-			method="POST"
-			{onsubmit}
-			aria-busy={submitting}
-			aria-describedby={message ? `login-error-${id}` : undefined}
-		>
+		<form method="POST" {onsubmit} aria-busy={submitting} aria-describedby={message ? `login-error-${id}` : undefined}>
 			<Field.Group>
 				<Field.Field>
 					<Field.Label for="email-{id}">Email</Field.Label>

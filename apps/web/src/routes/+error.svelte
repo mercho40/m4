@@ -18,7 +18,7 @@
 <main id="main-content" class="flex min-h-svh items-center justify-center p-6 md:p-10">
 	<Card.Root class="mx-auto w-full max-w-sm">
 		<Card.Header>
-			<p class="text-muted-foreground text-sm font-medium tracking-widest uppercase">{status}</p>
+			<p class="text-sm font-medium tracking-widest text-muted-foreground uppercase">{status}</p>
 			<h1 class="text-2xl leading-snug font-medium">{title}</h1>
 			<Card.Description>
 				{error.message ?? "An unexpected error occurred."}
@@ -27,7 +27,7 @@
 		<Card.Content class="space-y-4">
 			{#if error.errorId}
 				<div class="space-y-1">
-					<p class="text-muted-foreground text-sm">Reference</p>
+					<p class="text-sm text-muted-foreground">Reference</p>
 					<p class="font-mono text-sm font-medium">{error.errorId}</p>
 				</div>
 			{/if}

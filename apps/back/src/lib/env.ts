@@ -5,9 +5,9 @@
 // that as "unset" rather than failing. @elysiajs/cors, for one, falls back to
 // `origin: true` (= "*"), quietly widening CORS instead of erroring.
 function required(name: string): string {
-  const value = process.env[name];
-  if (!value) throw new Error(`${name} is required but was not set`);
-  return value;
+	const value = process.env[name];
+	if (!value) throw new Error(`${name} is required but was not set`);
+	return value;
 }
 
 export const DATABASE_URL = required("DATABASE_URL");

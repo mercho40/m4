@@ -35,7 +35,7 @@
 <main id="main-content" class="mx-auto flex min-h-svh w-full max-w-2xl flex-col justify-center gap-10 px-6 py-16">
 	<div class="space-y-4">
 		<h1 class="text-5xl font-bold tracking-tight md:text-6xl">Welcome back</h1>
-		<p class="text-muted-foreground text-lg">{data.user?.email}</p>
+		<p class="text-lg text-muted-foreground">{data.user?.email}</p>
 	</div>
 
 	<div class="space-y-3">
@@ -43,7 +43,7 @@
 			{signingOut ? "Signing out..." : "Sign out"}
 		</Button>
 		{#if message}
-			<p role="alert" class="text-destructive text-sm">{message}</p>
+			<p role="alert" class="text-sm text-destructive">{message}</p>
 		{/if}
 	</div>
 </main>

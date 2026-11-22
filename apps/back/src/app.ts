@@ -5,47 +5,47 @@ import { WEB_URL } from "#back/lib/env.js";
 
 // user middleware (compute user and session and pass to routes)
 export const betterAuth = new Elysia({ name: "better-auth" })
-  // Scoped to Better Auth's base path, which Elysia's guide recommends: a bare
-  // `.mount(auth.handler)` sends every unknown path through Better Auth too.
-  // The guide's `.mount("/prefix", …)` cannot be used as written: Elysia
-  // strips the prefix before Better Auth sees the request, but Better Auth
-  // builds OAuth callback and email URLs from BETTER_AUTH_URL without it.
-  // This is what `mount` does internally, minus the path rewrite.
-  .all("/api/auth/*", ({ request }) => auth.handler(request), { parse: "none" })
-  .macro({
-    auth: {
-      async resolve({ status, request: { headers } }) {
-        const session = await auth.api.getSession({
-          headers,
-        });
+	// Scoped to Better Auth's base path, which Elysia's guide recommends: a bare
+	// `.mount(auth.handler)` sends every unknown path through Better Auth too.
+	// The guide's `.mount("/prefix", …)` cannot be used as written: Elysia
+	// strips the prefix before Better Auth sees the request, but Better Auth
+	// builds OAuth callback and email URLs from BETTER_AUTH_URL without it.
+	// This is what `mount` does internally, minus the path rewrite.
+	.all("/api/auth/*", ({ request }) => auth.handler(request), { parse: "none" })
+	.macro({
+		auth: {
+			async resolve({ status, request: { headers } }) {
+				const session = await auth.api.getSession({
+					headers,
+				});
 
-        if (!session) return status(401);
+				if (!session) return status(401);
 
-        return {
-          user: session.user,
-          session: session.session,
-        };
-      },
-    },
-  });
+				return {
+					user: session.user,
+					session: session.session,
+				};
+			},
+		},
+	});
 
 // The app without a server: src/index.ts listens, and tests call
 // `app.handle(request)` without taking a port.
 export const app = new Elysia()
-  // The browser calls the Better Auth routes directly, with its cookies.
-  .use(
-    cors({
-      origin: WEB_URL,
-      methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-      credentials: true,
-      allowedHeaders: ["Content-Type", "Authorization"],
-      // Default is 5s, so nearly every call pays a preflight round-trip.
-      maxAge: 600,
-      // Default `true` echoes the request's header names back; pin it instead.
-      exposeHeaders: [],
-    }),
-  )
-  .use(betterAuth)
-  .get("/health", () => ({ status: "ok", timestamp: Date.now() }));
+	// The browser calls the Better Auth routes directly, with its cookies.
+	.use(
+		cors({
+			origin: WEB_URL,
+			methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+			credentials: true,
+			allowedHeaders: ["Content-Type", "Authorization"],
+			// Default is 5s, so nearly every call pays a preflight round-trip.
+			maxAge: 600,
+			// Default `true` echoes the request's header names back; pin it instead.
+			exposeHeaders: [],
+		}),
+	)
+	.use(betterAuth)
+	.get("/health", () => ({ status: "ok", timestamp: Date.now() }));
 
 export type App = typeof app;

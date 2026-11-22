@@ -10,7 +10,7 @@ export default defineConfig(
 		"**/node_modules/",
 		"**/.svelte-kit/",
 		"**/.svelte-check/",
-		"**/.vercel/",
+		"**/.wrangler/",
 		"**/build/",
 		"**/coverage/",
 		// Playwright's reports and traces (e2e/).
