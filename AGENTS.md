@@ -190,8 +190,8 @@ validators of its own.
 ## Deployment
 
 **`apps/web` → Cloudflare Workers.** `@sveltejs/adapter-cloudflare` builds the
-Worker into `.svelte-kit/cloudflare`; `wrangler.jsonc` names it (`m4-web`), its
-custom domains (production, and a preview-only one), and its placement:
+Worker into `.svelte-kit/cloudflare`; `wrangler.jsonc` names it (`m4-web`) and
+sets its placement:
 `aws:sa-east-1`, so it runs next to the API and its database in São Paulo
 rather than at the edge nearest the visitor, since server-side calls to the API
 (session revalidation) would otherwise cross the continent. Static assets and
@@ -199,7 +199,11 @@ prerendered pages still come from the nearest edge. `nodejs_als` is the only
 Node API it needs; don't turn on `nodejs_compat` without a reason. The Worker's
 runtime values are its vars and secrets, not a process environment: the Deploy
 job sends `PUBLIC_SITE_URL` and `BETTER_AUTH_SECRET` with every deploy.
-`_headers` keeps the `workers.dev` and preview hosts out of search results. Run
+`wrangler.jsonc` holds no domains: m4 is a template, so what differs per
+deployment (the build values, production's custom domain, the preview domain)
+lives in repository variables, and Deploy writes the domains into a generated
+config (`.github/scripts/web-deploy-config.ts`). With no custom domain the
+Worker serves only its `workers.dev` URL. Run
 the production build locally on workerd with `bun run --cwd apps/web preview`
 (`wrangler dev`, reading `apps/web/.env`); `bun run e2e` does the same.
 
@@ -233,9 +237,8 @@ then the API with Haloy (`apps/back/haloy.yaml`), then the web app with
 a change both sides must agree on ships the side that tolerates the other first,
 in its own commit. Nothing else deploys the web app (no Workers Git
 integration). Each half skips with a notice until its secrets and variables are
-set, and refuses to deploy while `haloy.yaml`, `.github/build.env`,
-`wrangler.jsonc` or `_headers` still hold the template's `example.com` or
-`example.net`. Setup, rollbacks (the `Rollback` workflow, never from a laptop)
+set, and the API's refuses to deploy while `haloy.yaml` still holds the
+template's `example.com`. Setup, rollbacks (the `Rollback` workflow, never from a laptop)
 and previews (the `preview` label on a PR) are in `docs/operations.md`.
 
 **Migrations run in the Deploy job, before the API.** The distroless runtime

@@ -30,6 +30,10 @@ a PR. `AGENTS.md` holds the rules that follow from them; this file holds the why
   and rolled back with `wrangler` from GitHub Actions, with Previews on a custom domain for full-stack previews. The
   placement hint (`aws:sa-east-1`) keeps its server-side calls next to the API; static files still come from the nearest
   edge. Replaces Vercel (`gru1`).
+- **D-9. The web app's per-deployment values live in repository variables, not in committed files.** m4 is a template: the web
+  app's build values and its domains are Actions variables, and Deploy writes the domains into a generated Wrangler
+  config, so a copy deploys without editing `apps/web` and the template itself can deploy without naming its own
+  domains in every copy. The API's `haloy.yaml` still holds placeholders to replace.
 
 ## Open
 

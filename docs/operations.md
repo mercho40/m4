@@ -20,26 +20,30 @@ some but not all of its values fails the Deploy job rather than ship half-config
 | `BETTER_AUTH_SECRET`         | secret   | deploy, rollback                       | Both apps': Deploy sends it to the API and, as a Worker secret, to the web app.                                        |
 | `GITHUB_CLIENT_SECRET`       | secret   | deploy, rollback                       | Optional, with its `GITHUB_CLIENT_ID` uncommented in `apps/back/haloy.yaml`.                                           |
 | `GOOGLE_CLIENT_SECRET`       | secret   | deploy, rollback                       | Optional, likewise.                                                                                                    |
-| `CLOUDFLARE_API_TOKEN`       | secret   | deploy, rollback, pr, preview-*        | An API token from the "Edit Cloudflare Workers" template, covering both zones (the custom domains). Turns the web deploy on. |
+| `CLOUDFLARE_API_TOKEN`       | secret   | deploy, rollback, pr, preview-*        | An API token from the "Edit Cloudflare Workers" template, covering the custom domains' zones. Turns the web deploy on. |
 | `CLOUDFLARE_ACCOUNT_ID`      | variable | deploy, rollback, pr, preview-*        | The Cloudflare account the Worker lives in.                                                                            |
+| `PUBLIC_API_URL`             | variable | ci, deploy                             | The API's origin, `https://api.example.com`: haloy.yaml's domain. Inlined into the web build.                          |
+| `PUBLIC_SITE_URL`            | variable | ci, deploy                             | The web app's canonical origin: `https://` and `WEB_DOMAIN`, or the Worker's `workers.dev` URL. Must be haloy.yaml's `WEB_URL`. |
+| `WEB_DOMAIN`                 | variable | deploy                                 | Optional: production's custom domain, `app.example.com`. Without it the Worker serves only its `workers.dev` URL. Unsetting it detaches nothing: remove the old domain in the dashboard. |
 | `NEON_API_KEY`               | secret   | deploy, pr, preview-*                  | Optional: restore points before migrating, the migration rehearsal, and previews' databases.                           |
 | `NEON_PROJECT_ID`            | variable | deploy, pr, preview-*                  | The Neon project production lives in.                                                                                  |
 | `NEON_PARENT_BRANCH`         | variable | deploy, pr                             | Production's branch (its name or id).                                                                                  |
 | `NEON_ROLE`, `NEON_DATABASE` | variable | pr                                     | The role and database in `DATABASE_URL`; default `neondb_owner` and `neondb`.                                          |
-| `PREVIEW_DOMAIN`             | variable | pr, preview-*                          | The previews' parent domain (see Previews). Turns previews on, with every row above but the OAuth ones.                |
+| `PREVIEW_DOMAIN`             | variable | deploy, pr, preview-*                  | The previews' parent domain (see Previews). Turns previews on, with the Haloy, Cloudflare and Neon rows above.                |
 | `PREVIEW_BETTER_AUTH_SECRET` | secret   | pr                                     | Previews' own secret, never production's.                                                                              |
 | `PREVIEW_MAX`                | variable | pr                                     | Open previews allowed at once; default 2.                                                                              |
 | `TURBO_TEAM`                 | variable | ci, deploy                             | Optional: the Vercel team slug whose Remote Cache Turborepo uses.                                                      |
 
 ### Before the first deploy
 
-1. Replace every `example.com` in `apps/back/haloy.yaml` (`server`, the domain, `BETTER_AUTH_URL`, `WEB_URL`,
-   `COOKIE_DOMAIN`), `.github/build.env` and `apps/web/wrangler.jsonc` (the production route), and the preview domain
-   `example.net` in `apps/web/wrangler.jsonc` and `apps/web/_headers`. The two apps must sit on subdomains of one parent
-   domain, which is `COOKIE_DOMAIN` (AGENTS.md, "Deployment"). Deploy refuses to ship either placeholder.
-2. Cloudflare: both parent domains (production's and `PREVIEW_DOMAIN`) as zones on the account; the Worker's custom
-   domains create their own DNS records and certificates. The API's host points at the Haloy server.
-3. Nothing to set on the Worker by hand: each deploy sends `PUBLIC_SITE_URL` (from `build.env`) as a var and
+1. The web app's values are the variables above, never committed: nothing in `apps/web` names a domain. For the API,
+   replace every `example.com` in `apps/back/haloy.yaml` (`server`, the domain, `BETTER_AUTH_URL`, `WEB_URL`,
+   `COOKIE_DOMAIN`); Deploy refuses to ship the placeholder. Sign-in needs both apps on subdomains of one parent domain,
+   which is `COOKIE_DOMAIN` (AGENTS.md, "Deployment"), so a web app on `workers.dev` alone serves only signed-out
+   pages: `workers.dev` is a public suffix, and no cookie spans it.
+2. Cloudflare: the zones of `WEB_DOMAIN` and `PREVIEW_DOMAIN`, if set, on the account; the Worker's custom domains create
+   their own DNS records and certificates. The API's host points at the Haloy server.
+3. Nothing to set on the Worker by hand: each deploy sends `PUBLIC_SITE_URL` as a var and
    `BETTER_AUTH_SECRET` as a secret, and drops any other var. A var added in the dashboard does not survive a deploy;
    add it to the workflow instead.
 4. Run the Deploy workflow by hand once. Unconfigured runs succeed too, so a push would deploy only what changed since
@@ -66,8 +70,9 @@ runs uncached: slower, never wrong.
 
 - Every push to `main` deploys (`deploy.yml`). If CI's `Test` already passed on exactly that tree in the PR it squashes,
   it is not tested again. Then, each only if it changed since the last successful deploy: migrations, the API with
-  Haloy, then the web app with `wrangler deploy`, built with `.github/build.env`. Workers has no Git integration here:
-  nothing deploys the web app but this job.
+  Haloy, then the web app with `wrangler deploy`, built with the `PUBLIC_*` variables. Workers has no Git integration
+  here: nothing deploys the web app but this job.
+- A change to a variable deploys nothing by itself: run the Deploy workflow by hand after changing one.
 - With Neon configured, a deploy that migrates first leaves a restore point, `backup/pre-deploy-<sha7>`, for 3 days;
   the newest two are kept (the free plan holds 10 branches, shared with previews and the rehearsal). Without Neon, take
   your provider's backup before merging a migration.
@@ -113,8 +118,8 @@ runs uncached: slower, never wrong.
 - `PREVIEW_DOMAIN` is a registrable domain of its own (`example-preview.dev`), never a subdomain of production's:
   production's session cookie, scoped to production's parent domain, would reach preview code otherwise.
 - DNS for it: `*.api.<PREVIEW_DOMAIN>` to the Haloy server. `app.<PREVIEW_DOMAIN>` is the Worker's preview-only custom
-  domain (`apps/web/wrangler.jsonc`): Cloudflare creates `*.app.<PREVIEW_DOMAIN>` and its certificate, but only once a
-  deploy from `main` has applied the route, so previews start working after the first production deploy. The first
+  domain, which Deploy adds: Cloudflare creates `*.app.<PREVIEW_DOMAIN>` and its certificate, but only once a deploy from
+  `main` has deployed the web app with `PREVIEW_DOMAIN` set: run Deploy by hand after setting it. The first
   Preview's certificate can take minutes.
 - Previews are public. To restrict them, put Cloudflare Access in front of `*.app.<PREVIEW_DOMAIN>`.
 - Previews hold a copy of production's users. Treat access to a preview, and to its logs, as access to production data.

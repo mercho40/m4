@@ -86,6 +86,13 @@ jobs:
       HALOY_TOKEN: ${{ secrets.HALOY_API_TOKEN }}
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+      # The web app's build values and domains: repository variables, not
+      # committed files, because m4 is a template. A change to one deploys on
+      # the next run that deploys the web app, or on a manual run.
+      PUBLIC_API_URL: ${{ vars.PUBLIC_API_URL }}
+      PUBLIC_SITE_URL: ${{ vars.PUBLIC_SITE_URL }}
+      WEB_DOMAIN: ${{ vars.WEB_DOMAIN }}
+      PREVIEW_DOMAIN: ${{ vars.PREVIEW_DOMAIN }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -120,11 +127,10 @@ jobs:
             # The Worker's runtime secret, the same value the API gets.
             [ -n "$BETTER_AUTH_SECRET" ] ||
               { echo "::error::CLOUDFLARE_API_TOKEN is set but the BETTER_AUTH_SECRET secret is not."; failed=1; }
-            for file in .github/build.env apps/web/wrangler.jsonc apps/web/_headers; do
-              if grep -qE 'example\.(com|net)' "$file"; then
-                echo "::error::$file still names example.com or example.net; set your domains."
-                failed=1
-              fi
+            # Absolute URLs: a bare host makes every server-rendered page 500.
+            for name in PUBLIC_API_URL PUBLIC_SITE_URL; do
+              [[ "${!name}" =~ ^https?://[^/]+ ]] ||
+                { echo "::error::CLOUDFLARE_API_TOKEN is set but the $name variable is not an absolute URL."; failed=1; }
             done
             echo "web=true" >> "$GITHUB_OUTPUT"
           fi
@@ -146,7 +152,7 @@ jobs:
           .github/scripts/changed.sh migrations apps/back/migrations
           # apps/web depends on @repo/back for types only: no backend change
           # alters its build output.
-          .github/scripts/changed.sh web apps/web "${root[@]}" .github/build.env .github/workflows/deploy.yml
+          .github/scripts/changed.sh web apps/web "${root[@]}" .github/workflows/deploy.yml .github/scripts/web-deploy-config.ts
       - if: >-
           (steps.configured.outputs.api == 'true' && steps.changed.outputs.back == 'true')
           || (steps.configured.outputs.web == 'true' && steps.changed.outputs.web == 'true')
@@ -212,8 +218,8 @@ jobs:
           fi
           echo "API ${GITHUB_SHA::7} deployed. Roll back with the Rollback workflow (target: back)." >> "$GITHUB_STEP_SUMMARY"
 
-      # Built with build.env's values, the ones CI's Test built with, so the
-      # build replays from Turborepo's remote cache. The Worker's runtime
+      # Built with the variables CI's Test built with, so the build replays
+      # from Turborepo's remote cache. The Worker's runtime
       # values go with the deploy itself: PUBLIC_SITE_URL as a var (a deploy
       # drops vars it is not given, so nothing stale survives) and
       # BETTER_AUTH_SECRET as a secret, from a file outside the checkout.
@@ -221,14 +227,11 @@ jobs:
         name: Deploy the web app to Cloudflare Workers
         run: |
           set -euo pipefail
-          set -a
-          # shellcheck disable=SC1091
-          . .github/build.env
-          set +a
           bunx turbo run build --filter=@repo/web
+          bun .github/scripts/web-deploy-config.ts
           secrets="$RUNNER_TEMP/web-secrets.json"
           trap 'rm -f "$secrets"' EXIT
           jq -n '{BETTER_AUTH_SECRET: env.BETTER_AUTH_SECRET}' > "$secrets"
-          (cd apps/web && bunx wrangler deploy --message "$GITHUB_SHA" --tag "${GITHUB_SHA::7}" \
+          (cd apps/web && bunx wrangler deploy -c wrangler.deploy.json --message "$GITHUB_SHA" --tag "${GITHUB_SHA::7}" \
             --var "PUBLIC_SITE_URL:$PUBLIC_SITE_URL" --secrets-file "$secrets")
           echo "Web app ${GITHUB_SHA::7} deployed. Roll back with the Rollback workflow (target: web)." >> "$GITHUB_STEP_SUMMARY"

@@ -26,7 +26,6 @@ apps/web/static
 apps/web/vite.config.ts
 apps/web/components.json
 apps/web/wrangler.jsonc
-apps/web/_headers
 
 # Tests, lint and local tooling: the image needs only the workspaces'
 # package.json files (the Dockerfile copies those), never their contents.
